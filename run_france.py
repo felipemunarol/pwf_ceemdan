@@ -97,10 +97,10 @@ from myfunctions_france_felipe import \
 # clear_memory()
 
 # # %%
-print('proposed_method using hilbert transform')
-proposed_method_hilbert_transform(new_data,i,look_back,data_partition,cap)
-# print('proposed_method using hilbert transform cv')
-# res = run_cv_hybrid_models(proposed_method_hilbert_transform, new_data, i, look_back=look_back,cap=cap)
+# print('proposed_method using hilbert transform')
+# proposed_method_hilbert_transform(new_data,i,look_back,data_partition,cap)
+print('proposed_method using hilbert transform cv')
+res = run_cv_hybrid_models(proposed_method_hilbert_transform, new_data, i, look_back=look_back,cap=cap)
 clear_memory()
 
 # # %%
@@ -146,11 +146,11 @@ clear_memory()
 # clear_memory()
 
 # %%
-print('proposed_method_with_transformer_keras')
-proposed_method_with_transformer_keras(new_data,i,look_back,data_partition,cap)
+# print('proposed_method_with_transformer_keras')
+# proposed_method_with_transformer_keras(new_data,i,look_back,data_partition,cap)
 # print('proposed_method_with_transformer_keras_cv')
 # res = run_cv_hybrid_models(proposed_method_with_transformer_keras, new_data, i, look_back=look_back,cap=cap)
-clear_memory()
+# clear_memory()
 
 
 
