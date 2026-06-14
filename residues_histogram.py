@@ -111,7 +111,7 @@ for pred_file in pred_files:
             residuo,
             bins=40,
             density=True,
-            alpha=0.6
+            alpha=0.6,
         )
 
         # curva normal ajustada
@@ -158,8 +158,6 @@ for pred_file in pred_files:
 
         ax.grid(alpha=0.3)
 
-        ax.legend()
-
         plt.tight_layout()
 
         # salvar
@@ -172,7 +170,7 @@ for pred_file in pred_files:
             f"residuals_histogram_{model_name}.pdf"
         )
 
-        plt.show()
+        # plt.show()
 
         # ==========================================================
         # 8. QQ-Plot
@@ -201,7 +199,7 @@ for pred_file in pred_files:
             f"qqplot_{model_name}.pdf"
         )
 
-        plt.show()
+        # plt.show()
 
         # ==========================================================
         # 9. Scatter y_pred vs y_true
@@ -244,7 +242,7 @@ for pred_file in pred_files:
             f"Intercept = {b:.4f}\n"
             f"Corr = {corr:.4f}",
             transform=ax.transAxes,
-            ha='left',
+            ha='right',
             va='top'
         )
 
@@ -264,7 +262,7 @@ for pred_file in pred_files:
             f"scatter_{model_name}.pdf"
         )
 
-        plt.show()
+        # plt.show()
 
         # ==========================================================
         # 9. Resultados

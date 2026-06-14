@@ -91,10 +91,11 @@ def run_pipeline(datasets, data1, look_back, model_func,
 
         # métricas
         mape = np.mean(np.abs(y_test - y_pred) / cap) * 100
+        classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
         rmse = np.sqrt(np.mean((y_test - y_pred) ** 2))
         mae  = np.mean(np.abs(y_test - y_pred))
 
-        return mape, rmse, mae, y_test, y_pred
+        return mape, classic_mape, rmse, mae, y_test, y_pred
 
     # =========================
     # CROSS VALIDATION
@@ -104,16 +105,17 @@ def run_pipeline(datasets, data1, look_back, model_func,
         tscv = TimeSeriesSplit(n_splits=n_splits)
 
         y_test_all, y_pred_all, dates_all = [], [], []
-        mape_list, rmse_list, mae_list = [], [], []
+        mape_list, classic_map_list, rmse_list, mae_list = [], [], [], []
 
         for train_index, test_index in tscv.split(datasets):
 
             train = datasets[train_index]
             test = datasets[test_index]
 
-            mape, rmse, mae, y_test, y_pred = run_model(train, test)
+            mape, classic_mape, rmse, mae, y_test, y_pred = run_model(train, test)
 
             mape_list.append(mape)
+            classic_map_list.append(classic_mape)
             rmse_list.append(rmse)
             mae_list.append(mae)
 
@@ -127,6 +129,7 @@ def run_pipeline(datasets, data1, look_back, model_func,
             dates_all.extend(np.asarray(dates_fold).astype(str))
 
         print("MAPE", np.mean(mape_list))
+        print("Classic_MAPE", np.mean(classic_map_list))
         print("RMSE", np.mean(rmse_list))
         print("MAE", np.mean(mae_list))
 
@@ -144,9 +147,10 @@ def run_pipeline(datasets, data1, look_back, model_func,
     train = datasets[:train_size]
     test = datasets[train_size:]
 
-    mape, rmse, mae, y_test, y_pred = run_model(train, test)
+    mape, classic_mape, rmse, mae, y_test, y_pred = run_model(train, test)
 
     print("MAPE", mape)
+    print("Classic_map", classic_mape)
     print("RMSE", rmse)
     print("MAE", mae)
 
@@ -329,10 +333,12 @@ def rf_model(new_data,i,look_back,data_partition,cap):
         
     #summarize the fit of the model
     mape=numpy.mean((numpy.abs(y_test-y_pred_test1_rf))/cap)*100
+    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
     rmse= sqrt(mean_squared_error(y_test,y_pred_test1_rf))
     mae=metrics.mean_absolute_error(y_test,y_pred_test1_rf)
 
     print('MAPE',mape)
+    print('Classic MAPE', classic_mape)
     print('RMSE',rmse)
     print('MAE',mae)
 
@@ -422,11 +428,13 @@ def lstm_model(new_data,i,look_back,data_partition,cap):
        
     #summarize the fit of the model
     mape=numpy.mean((numpy.abs(y_test-y_pred_test1))/cap)*100
+    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
     rmse= sqrt(mean_squared_error(y_test,y_pred_test1))
     mae=metrics.mean_absolute_error(y_test,y_pred_test1)
 
     
     print('MAPE',mape)
+    print('Classic MAPE', classic_mape)
     print('RMSE',rmse)
     print('MAE',mae)
 
@@ -596,11 +604,13 @@ def emd_lstm(new_data,i,look_back,data_partition,cap):
 
     #summarize the fit of the model
     mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
+    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
     rmse= sqrt(mean_squared_error(y_test,a))
     mae=metrics.mean_absolute_error(y_test,a)
 
     
     print('MAPE',mape)
+    print('Classic MAPE', classic_mape)
     print('RMSE',rmse)
     print('MAE',mae)
 
@@ -772,11 +782,13 @@ def eemd_lstm(new_data,i,look_back,data_partition,cap):
 
     #summarize the fit of the model
     mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
+    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
     rmse= sqrt(mean_squared_error(y_test,a))
     mae=metrics.mean_absolute_error(y_test,a)
 
     
     print('MAPE',mape)
+    print('Classic MAPE', classic_mape)
     print('RMSE',rmse)
     print('MAE',mae)
 
@@ -947,11 +959,13 @@ def ceemdan_lstm(new_data,i,look_back,data_partition,cap):
 
     #summarize the fit of the model
     mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
+    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
     rmse= sqrt(mean_squared_error(y_test,a))
     mae=metrics.mean_absolute_error(y_test,a)
 
     
     print('MAPE',mape)
+    print('Classic MAPE', classic_mape)
     print('RMSE',rmse)
     print('MAE',mae)
 
@@ -969,7 +983,7 @@ def run_cv_hybrid_models(method,
 
     tscv = TimeSeriesSplit(n_splits=n_splits)
 
-    mape_list, rmse_list, mae_list = [], [], []
+    mape_list, classic_mape_list, rmse_list, mae_list = [], [], [], []
     y_test_all, y_pred_all, dates_all = [], [], []
 
     for fold, (train_idx, test_idx) in enumerate(tscv.split(data1)):
@@ -991,10 +1005,12 @@ def run_cv_hybrid_models(method,
         )
 
         mape = np.mean(np.abs(y_test - y_pred) / cap) * 100
+        classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
         rmse = np.sqrt(np.mean((y_test - y_pred) ** 2))
         mae  = np.mean(np.abs(y_test - y_pred))
 
         mape_list.append(mape)
+        classic_mape_list.append(classic_mape)
         rmse_list.append(rmse)
         mae_list.append(mae)
 
@@ -1004,6 +1020,7 @@ def run_cv_hybrid_models(method,
 
     print("\n===== CV RESULTS =====")
     print("Model:", method.__name__)
+    print("Classic MAPE:", np.mean(classic_mape_list))
     print("MAPE:", np.mean(mape_list))
     print("RMSE:", np.mean(rmse_list))
     print("MAE :", np.mean(mae_list))
@@ -1023,6 +1040,7 @@ def run_cv_hybrid_models(method,
     return {
         "model": method.__name__,
         "mape": np.mean(mape_list),
+        "classic_map": np.mean(classic_mape_list),
         "rmse": np.mean(rmse_list),
         "mae": np.mean(mae_list),
         "y_test": np.array(y_test_all),
@@ -1212,11 +1230,13 @@ def proposed_method(new_data,i,look_back,data_partition,cap, save=True):
 
     #summarize the fit of the model
     mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
+    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
     rmse= sqrt(mean_squared_error(y_test,a))
     mae=metrics.mean_absolute_error(y_test,a)
 
     
     print('MAPE',mape)
+    print('Classic MAPE', classic_mape)
     print('RMSE',rmse)
     print('MAE',mae)
 
@@ -1528,6 +1548,7 @@ def proposed_method_hilbert_transform(new_data, i, look_back, data_partition, ca
     # 10. Métricas
     # =========================
     mape = np.mean(np.abs(y_test - y_pred) / cap) * 100
+    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
     rmse = sqrt(mean_squared_error(y_test, y_pred))
     mae = metrics.mean_absolute_error(y_test, y_pred)
 
@@ -1731,11 +1752,13 @@ def proposed_method_stable_layer(new_data,i,look_back,data_partition,cap):
 
     #summarize the fit of the model
     mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
+    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
     rmse= sqrt(mean_squared_error(y_test,a))
     mae=metrics.mean_absolute_error(y_test,a)
 
     
     print('MAPE',mape)
+    print('Classic MAPE', classic_mape)
     print('RMSE',rmse)
     print('MAE',mae)
 
@@ -1934,11 +1957,13 @@ def proposed_method_dropout_layer(new_data,i,look_back,data_partition,cap):
 
     #summarize the fit of the model
     mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
+    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
     rmse= sqrt(mean_squared_error(y_test,a))
     mae=metrics.mean_absolute_error(y_test,a)
 
     
     print('MAPE',mape)
+    print('Classic MAPE', classic_mape)
     print('RMSE',rmse)
     print('MAE',mae)
 
@@ -2136,11 +2161,13 @@ def proposed_method_stable_and_dropout_layer(new_data,i,look_back,data_partition
 
     #summarize the fit of the model
     mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
+    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
     rmse= sqrt(mean_squared_error(y_test,a))
     mae=metrics.mean_absolute_error(y_test,a)
 
     
     print('MAPE',mape)
+    print('Classic MAPE', classic_mape)
     print('RMSE',rmse)
     print('MAE',mae)
 
@@ -2340,11 +2367,13 @@ def proposed_method_with_bilstm(new_data,i,look_back,data_partition,cap):
 
     #summarize the fit of the model
     mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
+    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
     rmse= sqrt(mean_squared_error(y_test,a))
     mae=metrics.mean_absolute_error(y_test,a)
 
     
     print('MAPE',mape)
+    print('Classic MAPE', classic_mape)
     print('RMSE',rmse)
     print('MAE',mae)
 
@@ -2549,11 +2578,13 @@ def proposed_method_with_gru(new_data,i,look_back,data_partition,cap):
 
     #summarize the fit of the model
     mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
+    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
     rmse= sqrt(mean_squared_error(y_test,a))
     mae=metrics.mean_absolute_error(y_test,a)
 
     
     print('MAPE',mape)
+    print('Classic MAPE', classic_mape)
     print('RMSE',rmse)
     print('MAE',mae)
 
@@ -2751,11 +2782,13 @@ def proposed_method_with_bigru(new_data,i,look_back,data_partition,cap):
 
     #summarize the fit of the model
     mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
+    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
     rmse= sqrt(mean_squared_error(y_test,a))
     mae=metrics.mean_absolute_error(y_test,a)
 
     
     print('MAPE',mape)
+    print('Classic MAPE', classic_mape)
     print('RMSE',rmse)
     print('MAE',mae)
 
