@@ -5,6 +5,8 @@
 
 import os
 from PyEMD import CEEMDAN
+from scipy.signal import hilbert
+import ewtpy
 import math
 import tensorflow as tf
 import numpy
@@ -90,8 +92,11 @@ def run_pipeline(datasets, data1, look_back, model_func,
         ).ravel()
 
         # métricas
+        mask = y_test != 0
         mape = np.mean(np.abs(y_test - y_pred) / cap) * 100
-        classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
+        classic_mape = np.mean(
+            np.abs((y_test[mask] - y_pred[mask]) / y_test[mask])
+        ) * 100
         rmse = np.sqrt(np.mean((y_test - y_pred) ** 2))
         mae  = np.mean(np.abs(y_test - y_pred))
 
@@ -332,8 +337,11 @@ def rf_model(new_data,i,look_back,data_partition,cap):
     y_test= pd.DataFrame(y_test)
         
     #summarize the fit of the model
+    mask = y_test != 0
     mape=numpy.mean((numpy.abs(y_test-y_pred_test1_rf))/cap)*100
-    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
+    classic_mape = np.mean(
+        np.abs((y_test[mask] - y_pred_test1_rf[mask]) / y_test[mask])
+    ) * 100
     rmse= sqrt(mean_squared_error(y_test,y_pred_test1_rf))
     mae=metrics.mean_absolute_error(y_test,y_pred_test1_rf)
 
@@ -427,8 +435,11 @@ def lstm_model(new_data,i,look_back,data_partition,cap):
     y_test= sc_y.inverse_transform (y1)
        
     #summarize the fit of the model
+    mask = y_test != 0
     mape=numpy.mean((numpy.abs(y_test-y_pred_test1))/cap)*100
-    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
+    classic_mape = np.mean(
+        np.abs((y_test[mask] - y_pred_test1[mask]) / y_test[mask])
+    ) * 100
     rmse= sqrt(mean_squared_error(y_test,y_pred_test1))
     mae=metrics.mean_absolute_error(y_test,y_pred_test1)
 
@@ -603,8 +614,11 @@ def emd_lstm(new_data,i,look_back,data_partition,cap):
     y_test= pd.DataFrame(y_test)    
 
     #summarize the fit of the model
+    mask = y_test != 0
     mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
-    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
+    classic_mape = np.mean(
+        np.abs((y_test[mask] - a[mask]) / y_test[mask])
+    ) * 100
     rmse= sqrt(mean_squared_error(y_test,a))
     mae=metrics.mean_absolute_error(y_test,a)
 
@@ -781,8 +795,11 @@ def eemd_lstm(new_data,i,look_back,data_partition,cap):
     y_test= pd.DataFrame(y_test)    
 
     #summarize the fit of the model
+    mask = y_test != 0
     mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
-    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
+    classic_mape = np.mean(
+        np.abs((y_test[mask] - a[mask]) / y_test[mask])
+    ) * 100
     rmse= sqrt(mean_squared_error(y_test,a))
     mae=metrics.mean_absolute_error(y_test,a)
 
@@ -958,8 +975,11 @@ def ceemdan_lstm(new_data,i,look_back,data_partition,cap):
     y_test= pd.DataFrame(y_test)    
 
     #summarize the fit of the model
+    mask = y_test != 0
     mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
-    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
+    classic_mape = np.mean(
+        np.abs((y_test[mask] - a[mask]) / y_test[mask])
+    ) * 100
     rmse= sqrt(mean_squared_error(y_test,a))
     mae=metrics.mean_absolute_error(y_test,a)
 
@@ -1004,8 +1024,11 @@ def run_cv_hybrid_models(method,
             cap=cap
         )
 
+        mask = y_test != 0
         mape = np.mean(np.abs(y_test - y_pred) / cap) * 100
-        classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
+        classic_mape = np.mean(
+            np.abs((y_test[mask] - y_pred[mask]) / y_test[mask])
+        ) * 100
         rmse = np.sqrt(np.mean((y_test - y_pred) ** 2))
         mae  = np.mean(np.abs(y_test - y_pred))
 
@@ -1229,8 +1252,11 @@ def proposed_method(new_data,i,look_back,data_partition,cap, save=True):
 
 
     #summarize the fit of the model
+    mask = y_test != 0
     mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
-    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
+    classic_mape = np.mean(
+        np.abs((y_test[mask] - a[mask]) / y_test[mask])
+    ) * 100
     rmse= sqrt(mean_squared_error(y_test,a))
     mae=metrics.mean_absolute_error(y_test,a)
 
@@ -1416,20 +1442,8 @@ def proposed_method(new_data,i,look_back,data_partition,cap, save=True):
 
 #     return a, y_test
 
-def proposed_method_hilbert_transform(new_data, i, look_back, data_partition, cap):
 
-    import numpy as np
-    import pandas as pd
-    from math import sqrt
-    from sklearn.preprocessing import StandardScaler
-    from sklearn.metrics import mean_squared_error
-    from sklearn import metrics
-    from scipy.signal import hilbert
-    from PyEMD import CEEMDAN
-    import tensorflow as tf
-    from tensorflow.keras.models import Sequential
-    from tensorflow.keras.layers import Dense, LSTM
-    import os
+def proposed_method_hilbert_transform(new_data, i, look_back, data_partition, cap):
 
     # =========================
     # 1. Data
@@ -1547,12 +1561,16 @@ def proposed_method_hilbert_transform(new_data, i, look_back, data_partition, ca
     # =========================
     # 10. Métricas
     # =========================
+    mask = y_test != 0
     mape = np.mean(np.abs(y_test - y_pred) / cap) * 100
-    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
+    classic_mape = np.mean(
+        np.abs((y_test[mask] - y_pred[mask]) / y_test[mask])
+    ) * 100
     rmse = sqrt(mean_squared_error(y_test, y_pred))
     mae = metrics.mean_absolute_error(y_test, y_pred)
 
     print('MAPE', mape)
+    print('Classic MAPE', classic_mape)
     print('RMSE', rmse)
     print('MAE', mae)
 
@@ -1569,8 +1587,238 @@ def proposed_method_hilbert_transform(new_data, i, look_back, data_partition, ca
     return y_test.flatten(), y_pred.flatten(), dates.astype(str)
 
 
-##Proposed Method Hybrid CEEMDAN-EWT LSTM with Stable Layer
+# https://emd.readthedocs.io/en/stable/emd_tutorials/02_spectrum_analysis/emd_tutorial_02_spectrum_01_hilberthuang.html
+def proposed_method_hilbert_transform_EMD_library(new_data, i, look_back, data_partition, cap):
+    
+    x=i
+    data1=new_data.loc[new_data['Month'].isin(x)]
+    data1=data1.reset_index(drop=True)
+    data1=data1.dropna()
+    
+    datas=data1['P_avg']
+    datas_wind=pd.DataFrame(datas)
+    dfs=datas
+    s = dfs.values
 
+    emd_model = CEEMDAN(epsilon=0.05)
+    emd_model.noise_seed(12345)
+
+    IMFs = emd_model(s)
+
+    full_imf = pd.DataFrame(IMFs)
+    print("Quantidade IMFs", full_imf.shape[0])
+
+    ceemdan1 = full_imf.T
+
+    # =========================
+    # EWT apenas na primeira IMF
+    # =========================
+    imf1 = ceemdan1.iloc[:, 0].values
+
+    ewt, mfb, boundaries = ewtpy.EWT1D(imf1, N=3)
+    df_ewt = pd.DataFrame(ewt)
+
+    # remove componente redundante (como no seu original)
+    df_ewt.drop(df_ewt.columns[2], axis=1, inplace=True)
+
+    denoised_imf1 = df_ewt.sum(axis=1, skipna=True)
+
+    # mantém demais IMFs do CEEMDAN
+    ceemdan_rest = ceemdan1.iloc[:, 1:]
+
+    # novo dataset base (antes da Hilbert)
+    new_ceemdan_base = pd.concat(
+        [pd.DataFrame(denoised_imf1), ceemdan_rest.reset_index(drop=True)],
+        axis=1
+    )
+
+    # =========================
+    # Hilbert Transform (Amplitude Instantânea)
+    # =========================
+    sample_rate = 1
+
+    IP, IF, IA = emd.spectra.frequency_transform(
+        new_ceemdan_base.values,
+        sample_rate,
+        'nht'
+    )
+
+    # substitui cada componente pela sua amplitude instantânea
+    new_ceemdan = pd.DataFrame(
+        IA,
+        columns=new_ceemdan_base.columns
+)
+    
+
+    pred_test=[]
+    test_ori=[]
+    pred_train=[]
+    train_ori=[]
+
+    batch_size=64
+    lr=0.001
+    optimizer='Adam'
+
+    for col in new_ceemdan:
+
+        datasetss2=pd.DataFrame(new_ceemdan[col])
+        datasets=datasetss2.values
+        train_size = int(len(datasets) * data_partition)
+        test_size = len(datasets) - train_size
+        train, test = datasets[0:train_size], datasets[train_size:len(datasets)]
+
+        trainX, trainY = create_dataset(train, look_back)
+        testX, testY = create_dataset(test, look_back)
+        X_train=pd.DataFrame(trainX)
+        Y_train=pd.DataFrame(trainY)
+        X_test=pd.DataFrame(testX)
+        Y_test=pd.DataFrame(testY)
+        sc_X = StandardScaler()
+        sc_y = StandardScaler()
+        
+        X= sc_X.fit_transform(X_train)
+        y= sc_y.fit_transform(Y_train)
+        X1= sc_X.fit_transform(X_test)
+        y1= sc_y.fit_transform(Y_test)
+        y=y.ravel()
+        y1=y1.ravel()  
+
+        import numpy
+
+        trainX = numpy.reshape(X, (X.shape[0], X.shape[1],1))
+        testX = numpy.reshape(X1, (X1.shape[0], X1.shape[1],1))
+
+        numpy.random.seed(1234)
+        import tensorflow as tf
+        tf.random.set_seed(1234)
+
+        
+        import os 
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+        from tensorflow.keras.models import Sequential
+        from tensorflow.keras.layers import Dense, Dropout, Activation
+        from tensorflow.keras.layers import LSTM
+
+
+        # LSTM Archithecture Summary:
+        # - input_shape= (qtd. registros/janela temporal, características (1 neste caso)).
+        # - Camada Sequencial = 128 neurônios. ([xᵢ,t-5] → [xᵢ,t-4] → [xᵢ,t-3] → [xᵢ,t-2] → [xᵢ,t-1] → [xᵢ,t] - 128 Unidades)
+        # - Camada Densa = 1 neurônio. Previsao. Input: ht (último estado oculto) pertencente a R128. y^​=w'hT​+b. output_shape=(qtd. registros, 1).
+        neuron=128
+        model = Sequential()
+        model.add(LSTM(units = neuron,input_shape=(trainX.shape[1], trainX.shape[2])))
+        model.add(Dense(1))
+        optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+        model.compile(loss='mse',optimizer=optimizer)
+
+        model.fit(trainX, y, epochs = epochs, batch_size = batch_size,verbose=0)
+
+         # make predictions
+        y_pred_train = model.predict(trainX)
+        y_pred_test = model.predict(testX)
+        
+        y_pred_test= numpy.array(y_pred_test).ravel()
+        y_pred_test=pd.DataFrame(y_pred_test)
+        y1=pd.DataFrame(y1)
+        y=pd.DataFrame(y)
+        y_pred_train= numpy.array(y_pred_train).ravel()
+        y_pred_train=pd.DataFrame(y_pred_train)
+
+        y_test= sc_y.inverse_transform (y1)
+        y_train= sc_y.inverse_transform (y)
+
+        y_pred_test1= sc_y.inverse_transform (y_pred_test)
+        y_pred_train1= sc_y.inverse_transform (y_pred_train)
+
+
+        pred_test.append(y_pred_test1)
+        test_ori.append(y_test)
+        pred_train.append(y_pred_train1)
+        train_ori.append(y_train)
+
+
+    result_pred_test= pd.DataFrame.from_records(pred_test)
+    result_pred_train= pd.DataFrame.from_records(pred_train)
+
+
+    a=result_pred_test.sum(axis = 0, skipna = True) 
+    b=result_pred_train.sum(axis = 0, skipna = True) 
+
+
+    dataframe=pd.DataFrame(dfs)
+    dataset=dataframe.values
+
+    train_size = int(len(dataset) * data_partition)
+    test_size = len(dataset) - train_size
+    train, test = dataset[0:train_size], dataset[train_size:len(dataset)]
+
+    trainX, trainY = create_dataset(train, look_back)
+    testX, testY = create_dataset(test, look_back)
+    X_train=pd.DataFrame(trainX)
+    Y_train=pd.DataFrame(trainY)
+    X_test=pd.DataFrame(testX)
+    Y_test=pd.DataFrame(testY)
+
+    sc_X = StandardScaler()
+    sc_y = StandardScaler() 
+    X= sc_X.fit_transform(X_train)
+    y= sc_y.fit_transform(Y_train)
+    X1= sc_X.fit_transform(X_test)
+    y1= sc_y.fit_transform(Y_test)
+    y=y.ravel()
+    y1=y1.ravel()
+
+    import numpy
+
+    trainX = numpy.reshape(X, (X.shape[0], 1, X.shape[1]))
+    testX = numpy.reshape(X1, (X1.shape[0], 1, X1.shape[1]))
+
+    numpy.random.seed(1234)
+    import tensorflow as tf
+
+    y1=pd.DataFrame(y1)
+    y=pd.DataFrame(y)
+
+    y_test= sc_y.inverse_transform (y1)
+    y_train= sc_y.inverse_transform (y)
+
+
+    a= pd.DataFrame(a)    
+    y_test= pd.DataFrame(y_test)    
+
+
+    #summarize the fit of the model
+    mask = y_test != 0
+    mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
+    classic_mape = np.mean(
+        np.abs((y_test[mask] - a[mask]) / y_test[mask])
+    ) * 100
+    rmse= sqrt(mean_squared_error(y_test,a))
+    mae=metrics.mean_absolute_error(y_test,a)
+
+    
+    print('MAPE',mape)
+    print('Classic MAPE', classic_mape)
+    print('RMSE',rmse)
+    print('MAE',mae)
+
+    dates = pd.to_datetime(data1['Date'].iloc[
+        train_size + look_back:
+        train_size + look_back + len(y_test)
+    ])
+
+
+    # Save the real and predict values
+    np.savetxt(os.path.join(BASE_DIR, 'y_test.txt'), y_test.values.flatten(), fmt='%.6f')
+    np.savetxt(os.path.join(BASE_DIR, 'y_pred_proposed_method_hilbert_emd_lib.txt'), a.values.flatten(), fmt='%.6f')
+
+    np.savetxt(os.path.join(BASE_DIR, 'dates.txt'), dates.astype(str), fmt='%s')
+
+    return y_test.values.flatten(), a.values.flatten(), dates.astype(str)
+
+
+
+##Proposed Method Hybrid CEEMDAN-EWT LSTM with Stable Layer
 def proposed_method_stable_layer(new_data,i,look_back,data_partition,cap):
 
     x=i
@@ -1751,8 +1999,11 @@ def proposed_method_stable_layer(new_data,i,look_back,data_partition,cap):
 
 
     #summarize the fit of the model
+    mask = y_test != 0
     mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
-    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
+    classic_mape = np.mean(
+        np.abs((y_test[mask] - a[mask]) / y_test[mask])
+    ) * 100
     rmse= sqrt(mean_squared_error(y_test,a))
     mae=metrics.mean_absolute_error(y_test,a)
 
@@ -1956,8 +2207,11 @@ def proposed_method_dropout_layer(new_data,i,look_back,data_partition,cap):
 
 
     #summarize the fit of the model
+    mask = y_test != 0
     mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
-    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
+    classic_mape = np.mean(
+        np.abs((y_test[mask] - a[mask]) / y_test[mask])
+    ) * 100
     rmse= sqrt(mean_squared_error(y_test,a))
     mae=metrics.mean_absolute_error(y_test,a)
 
@@ -2160,8 +2414,11 @@ def proposed_method_stable_and_dropout_layer(new_data,i,look_back,data_partition
 
 
     #summarize the fit of the model
+    mask = y_test != 0
     mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
-    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
+    classic_mape = np.mean(
+        np.abs((y_test[mask] - a[mask]) / y_test[mask])
+    ) * 100
     rmse= sqrt(mean_squared_error(y_test,a))
     mae=metrics.mean_absolute_error(y_test,a)
 
@@ -2366,8 +2623,11 @@ def proposed_method_with_bilstm(new_data,i,look_back,data_partition,cap):
 
 
     #summarize the fit of the model
+    mask = y_test != 0
     mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
-    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
+    classic_mape = np.mean(
+        np.abs((y_test[mask] - a[mask]) / y_test[mask])
+    ) * 100
     rmse= sqrt(mean_squared_error(y_test,a))
     mae=metrics.mean_absolute_error(y_test,a)
 
@@ -2577,8 +2837,11 @@ def proposed_method_with_gru(new_data,i,look_back,data_partition,cap):
 
 
     #summarize the fit of the model
+    mask = y_test != 0
     mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
-    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
+    classic_mape = np.mean(
+        np.abs((y_test[mask] - a[mask]) / y_test[mask])
+    ) * 100
     rmse= sqrt(mean_squared_error(y_test,a))
     mae=metrics.mean_absolute_error(y_test,a)
 
@@ -2781,8 +3044,11 @@ def proposed_method_with_bigru(new_data,i,look_back,data_partition,cap):
 
 
     #summarize the fit of the model
+    mask = y_test != 0
     mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
-    classic_mape = np.mean(np.abs((y_test - a) / y_test)) * 100
+    classic_mape = np.mean(
+        np.abs((y_test[mask] - a[mask]) / y_test[mask])
+    ) * 100
     rmse= sqrt(mean_squared_error(y_test,a))
     mae=metrics.mean_absolute_error(y_test,a)
 
