@@ -67,7 +67,7 @@ plt.rcParams.update({
     'legend.fontsize': 12   # legenda
 })
 
-cv = False
+cv = True
 
 # =========================
 # 1. Load data
@@ -110,37 +110,69 @@ for file in sorted(pred_files):
 # 3. Plot
 # =========================
 
+# Pasta de saída
+output_dir = "predsplot"
+os.makedirs(output_dir, exist_ok=True)
+
 for name, y_pred in predictions.items():
 
-    plt.figure(figsize=(12,6))
+    try:
 
-    plt.plot(y_test, label='Real', linewidth=2, color='black')
+        plt.figure(figsize=(12, 6))
 
-    # if len(y_pred) == len(y_test):
-    plt.plot(y_pred, linestyle='--', label=name)
+        plt.plot(
+            y_test,
+            label='Real',
+            linewidth=2,
+            color='black'
+        )
 
-    erro = y_test - y_pred
+        plt.plot(
+            y_pred,
+            linestyle='--',
+            label=name
+        )
 
-    q05 = np.percentile(erro, 5)
-    q95 = np.percentile(erro, 95)
+        erro = y_test - y_pred
 
-    lower = y_pred + q05
-    upper = y_pred + q95
+        q05 = np.percentile(erro, 5)
+        q95 = np.percentile(erro, 95)
 
-    plt.fill_between(
-        np.arange(len(y_pred)),
-        lower,
-        upper,
-        alpha=0.6,
-        label='90% prediction interval'
-    )
+        lower = y_pred + q05
+        upper = y_pred + q95
 
+        plt.fill_between(
+            np.arange(len(y_pred)),
+            lower,
+            upper,
+            alpha=0.6,
+            label='90% prediction interval'
+        )
 
-    plt.title('Wind Power Forecast')
-    plt.xlabel('Samples')
-    plt.ylabel('Power')
-    plt.legend()
-    plt.grid(True)
+        plt.title('Wind Power Forecast')
+        plt.xlabel('Samples')
+        plt.ylabel('Power')
+        plt.legend()
+        plt.grid(True)
 
-    plt.tight_layout()
-    plt.show()
+        plt.tight_layout()
+
+        # Nome do arquivo de saída
+        output_file = os.path.join(
+            output_dir,
+            f"{name}.png"
+        )
+
+        plt.savefig(
+            output_file,
+            dpi=300,
+            bbox_inches='tight'
+        )
+
+        plt.close()
+
+        print(f"Gráfico salvo em: {output_file}")
+
+    except Exception as e:
+        print("Erro no plot do método {}".format(name))
+        print(e)

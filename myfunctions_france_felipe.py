@@ -1085,9 +1085,6 @@ def proposed_method(new_data,i,look_back,data_partition,cap, save=True):
     dfs=datas
     s = dfs.values
 
-    from PyEMD import EMD,EEMD,CEEMDAN
-    import numpy
-
     emd = CEEMDAN(epsilon=0.05)
     emd.noise_seed(12345)
 
@@ -1099,7 +1096,7 @@ def proposed_method(new_data,i,look_back,data_partition,cap, save=True):
     ceemdan1=full_imf.T
     
     imf1=ceemdan1.iloc[:,0]
-    imf_dataps=numpy.array(imf1)
+    imf_dataps=np.array(imf1)
     imf_datasetss= imf_dataps.reshape(-1,1)
     imf_new_datasets=pd.DataFrame(imf_datasetss)
 
@@ -1113,7 +1110,6 @@ def proposed_method(new_data,i,look_back,data_partition,cap, save=True):
     ceemdan_without_imf1=ceemdan1.iloc[:,1:]
     new_ceemdan=pd.concat([denoised,ceemdan_without_imf1],axis=1)    
     
-
     pred_test=[]
     test_ori=[]
     pred_train=[]
@@ -1147,12 +1143,10 @@ def proposed_method(new_data,i,look_back,data_partition,cap, save=True):
         y=y.ravel()
         y1=y1.ravel()  
 
-        import numpy
+        trainX = np.reshape(X, (X.shape[0], X.shape[1],1))
+        testX = np.reshape(X1, (X1.shape[0], X1.shape[1],1))
 
-        trainX = numpy.reshape(X, (X.shape[0], X.shape[1],1))
-        testX = numpy.reshape(X1, (X1.shape[0], X1.shape[1],1))
-
-        numpy.random.seed(1234)
+        np.random.seed(1234)
         import tensorflow as tf
         tf.random.set_seed(1234)
 
@@ -1181,11 +1175,11 @@ def proposed_method(new_data,i,look_back,data_partition,cap, save=True):
         y_pred_train = model.predict(trainX)
         y_pred_test = model.predict(testX)
         
-        y_pred_test= numpy.array(y_pred_test).ravel()
+        y_pred_test= np.array(y_pred_test).ravel()
         y_pred_test=pd.DataFrame(y_pred_test)
         y1=pd.DataFrame(y1)
         y=pd.DataFrame(y)
-        y_pred_train= numpy.array(y_pred_train).ravel()
+        y_pred_train= np.array(y_pred_train).ravel()
         y_pred_train=pd.DataFrame(y_pred_train)
 
         y_test= sc_y.inverse_transform (y1)
@@ -1232,12 +1226,10 @@ def proposed_method(new_data,i,look_back,data_partition,cap, save=True):
     y=y.ravel()
     y1=y1.ravel()
 
-    import numpy
+    trainX = np.reshape(X, (X.shape[0], 1, X.shape[1]))
+    testX = np.reshape(X1, (X1.shape[0], 1, X1.shape[1]))
 
-    trainX = numpy.reshape(X, (X.shape[0], 1, X.shape[1]))
-    testX = numpy.reshape(X1, (X1.shape[0], 1, X1.shape[1]))
-
-    numpy.random.seed(1234)
+    np.random.seed(1234)
     import tensorflow as tf
 
     y1=pd.DataFrame(y1)
@@ -1253,7 +1245,7 @@ def proposed_method(new_data,i,look_back,data_partition,cap, save=True):
 
     #summarize the fit of the model
     mask = y_test != 0
-    mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
+    mape=np.mean((np.abs(y_test-a))/cap)*100
     classic_mape = np.mean(
         np.abs((y_test[mask] - a[mask]) / y_test[mask])
     ) * 100
@@ -1587,18 +1579,45 @@ def proposed_method_hilbert_transform(new_data, i, look_back, data_partition, ca
     return y_test.flatten(), y_pred.flatten(), dates.astype(str)
 
 
-# https://emd.readthedocs.io/en/stable/emd_tutorials/02_spectrum_analysis/emd_tutorial_02_spectrum_01_hilberthuang.html
-def proposed_method_hilbert_transform_EMD_library(new_data, i, look_back, data_partition, cap):
-    
-    x=i
-    data1=new_data.loc[new_data['Month'].isin(x)]
-    data1=data1.reset_index(drop=True)
-    data1=data1.dropna()
-    
-    datas=data1['P_avg']
-    datas_wind=pd.DataFrame(datas)
-    dfs=datas
-    s = dfs.values
+#https://emd.readthedocs.io/en/stable/index.html
+def proposed_method_hilbert_transform_EMD_library(
+    new_data,
+    i,
+    look_back,
+    data_partition,
+    cap
+):
+
+    import os
+    import numpy as np
+    import pandas as pd
+    import tensorflow as tf
+    import emd
+    import ewtpy
+
+    from PyEMD import CEEMDAN
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.metrics import mean_squared_error, mean_absolute_error
+    from math import sqrt
+
+    from tensorflow.keras.models import Sequential
+    from tensorflow.keras.layers import LSTM, Dense
+
+    # ============================================================
+    # 1. Seleção dos dados
+    # ============================================================
+
+    data1 = new_data.loc[new_data['Month'].isin(i)].copy()
+
+    data1 = data1.reset_index(drop=True)
+    data1 = data1.dropna()
+
+    dfs = data1['P_avg'].copy()
+    s = dfs.values.astype(float)
+
+    # ============================================================
+    # 2. CEEMDAN
+    # ============================================================
 
     emd_model = CEEMDAN(epsilon=0.05)
     emd_model.noise_seed(12345)
@@ -1606,216 +1625,522 @@ def proposed_method_hilbert_transform_EMD_library(new_data, i, look_back, data_p
     IMFs = emd_model(s)
 
     full_imf = pd.DataFrame(IMFs)
-    print("Quantidade IMFs", full_imf.shape[0])
 
-    ceemdan1 = full_imf.T
+    print("Quantidade IMFs:", full_imf.shape[0])
 
-    # =========================
-    # EWT apenas na primeira IMF
-    # =========================
+    # CEEMDAN retorna:
+    #
+    #   linhas    -> IMFs
+    #   colunas   -> amostras
+    #
+    # Transpondo:
+    #
+    #   linhas    -> amostras
+    #   colunas   -> IMFs
+
+    ceemdan1 = full_imf.T.reset_index(drop=True)
+
+    # ============================================================
+    # 3. EWT somente na primeira IMF
+    # ============================================================
+    print("Passei Aqui")
+
     imf1 = ceemdan1.iloc[:, 0].values
 
-    ewt, mfb, boundaries = ewtpy.EWT1D(imf1, N=3)
+    ewt, mfb, boundaries = ewtpy.EWT1D(
+        imf1,
+        N=3
+    )
+
     df_ewt = pd.DataFrame(ewt)
 
-    # remove componente redundante (como no seu original)
-    df_ewt.drop(df_ewt.columns[2], axis=1, inplace=True)
+    # Remove a terceira componente da EWT
+    if df_ewt.shape[1] >= 3:
+        df_ewt.drop(df_ewt.columns[2], axis=1, inplace=True)
 
-    denoised_imf1 = df_ewt.sum(axis=1, skipna=True)
+    # Reconstrói a primeira IMF
+    denoised_imf1 = df_ewt.sum(
+        axis=1,
+        skipna=True
+    ).values
 
-    # mantém demais IMFs do CEEMDAN
-    ceemdan_rest = ceemdan1.iloc[:, 1:]
+    # ============================================================
+    # 4. Mantém as demais IMFs do CEEMDAN
+    # ============================================================
 
-    # novo dataset base (antes da Hilbert)
+    ceemdan_rest = ceemdan1.iloc[:, 1:].copy()
+
+    # Primeira coluna = IMF1 filtrada pela EWT
+    denoised_imf1_df = pd.DataFrame(
+        denoised_imf1,
+        columns=['IMF1']
+    )
+
+    # Junta IMF1 filtrada + demais IMFs
     new_ceemdan_base = pd.concat(
-        [pd.DataFrame(denoised_imf1), ceemdan_rest.reset_index(drop=True)],
+        [
+            denoised_imf1_df,
+            ceemdan_rest.reset_index(drop=True)
+        ],
         axis=1
     )
 
-    # =========================
-    # Hilbert Transform (Amplitude Instantânea)
-    # =========================
-    sample_rate = 1
+    print(
+        "Componentes antes da Hilbert:",
+        new_ceemdan_base.shape[1]
+    )
 
+    # ============================================================
+    # 5. Transformada de Hilbert
+    # ============================================================
+
+    sample_rate = 1.0
+
+    # Compute instantaneous phase, frequency and amplitude from a set of IMFs.
     IP, IF, IA = emd.spectra.frequency_transform(
         new_ceemdan_base.values,
         sample_rate,
         'nht'
     )
 
-    # substitui cada componente pela sua amplitude instantânea
     new_ceemdan = pd.DataFrame(
         IA,
         columns=new_ceemdan_base.columns
-)
-    
+    )
 
-    pred_test=[]
-    test_ori=[]
-    pred_train=[]
-    train_ori=[]
+    print(
+        "Componentes após Hilbert:",
+        new_ceemdan.shape[1]
+    )
 
-    batch_size=64
-    lr=0.001
-    optimizer='Adam'
+    # ============================================================
+    # 6. Parâmetros da LSTM
+    # ============================================================
 
-    for col in new_ceemdan:
+    pred_test = []
+    test_ori = []
 
-        datasetss2=pd.DataFrame(new_ceemdan[col])
-        datasets=datasetss2.values
-        train_size = int(len(datasets) * data_partition)
-        test_size = len(datasets) - train_size
-        train, test = datasets[0:train_size], datasets[train_size:len(datasets)]
+    pred_train = []
+    train_ori = []
 
-        trainX, trainY = create_dataset(train, look_back)
-        testX, testY = create_dataset(test, look_back)
-        X_train=pd.DataFrame(trainX)
-        Y_train=pd.DataFrame(trainY)
-        X_test=pd.DataFrame(testX)
-        Y_test=pd.DataFrame(testY)
+    batch_size = 64
+    learning_rate = 0.001
+    neuron = 128
+
+    # ============================================================
+    # 7. Uma LSTM para cada componente
+    # ============================================================
+
+    for col in new_ceemdan.columns:
+
+        print("Processando componente:", col)
+
+        # --------------------------------------------------------
+        # Dados da componente
+        # --------------------------------------------------------
+
+        component = new_ceemdan[col].values.astype(float)
+
+        datasetss2 = pd.DataFrame(
+            component
+        )
+
+        datasets = datasetss2.values
+
+        # --------------------------------------------------------
+        # Separação temporal treino/teste
+        # --------------------------------------------------------
+
+        train_size = int(
+            len(datasets) * data_partition
+        )
+
+        train = datasets[:train_size]
+        test = datasets[train_size:]
+
+        # --------------------------------------------------------
+        # Criação das janelas
+        # --------------------------------------------------------
+
+        trainX, trainY = create_dataset(
+            train,
+            look_back
+        )
+
+        testX, testY = create_dataset(
+            test,
+            look_back
+        )
+
+        # --------------------------------------------------------
+        # DataFrames
+        # --------------------------------------------------------
+
+        X_train = pd.DataFrame(trainX)
+        Y_train = pd.DataFrame(trainY)
+
+        X_test = pd.DataFrame(testX)
+        Y_test = pd.DataFrame(testY)
+
+        # ========================================================
+        # 8. Normalização
+        # ========================================================
+
         sc_X = StandardScaler()
         sc_y = StandardScaler()
-        
-        X= sc_X.fit_transform(X_train)
-        y= sc_y.fit_transform(Y_train)
-        X1= sc_X.fit_transform(X_test)
-        y1= sc_y.fit_transform(Y_test)
-        y=y.ravel()
-        y1=y1.ravel()  
 
-        import numpy
+        # FIT somente no TREINO
+        X = sc_X.fit_transform(X_train)
+        y = sc_y.fit_transform(Y_train)
 
-        trainX = numpy.reshape(X, (X.shape[0], X.shape[1],1))
-        testX = numpy.reshape(X1, (X1.shape[0], X1.shape[1],1))
+        # TRANSFORM no TESTE
+        X1 = sc_X.transform(X_test)
+        y1 = sc_y.transform(Y_test)
 
-        numpy.random.seed(1234)
-        import tensorflow as tf
+        y = y.ravel()
+        y1 = y1.ravel()
+
+        # ========================================================
+        # 9. Formato da entrada da LSTM
+        # ========================================================
+
+        trainX_lstm = np.reshape(
+            X,
+            (
+                X.shape[0],
+                X.shape[1],
+                1
+            )
+        )
+
+        testX_lstm = np.reshape(
+            X1,
+            (
+                X1.shape[0],
+                X1.shape[1],
+                1
+            )
+        )
+
+        # ========================================================
+        # 10. Seeds
+        # ========================================================
+
+        np.random.seed(1234)
         tf.random.set_seed(1234)
 
-        
-        import os 
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-        from tensorflow.keras.models import Sequential
-        from tensorflow.keras.layers import Dense, Dropout, Activation
-        from tensorflow.keras.layers import LSTM
+        # ========================================================
+        # 11. Modelo LSTM
+        # ========================================================
 
-
-        # LSTM Archithecture Summary:
-        # - input_shape= (qtd. registros/janela temporal, características (1 neste caso)).
-        # - Camada Sequencial = 128 neurônios. ([xᵢ,t-5] → [xᵢ,t-4] → [xᵢ,t-3] → [xᵢ,t-2] → [xᵢ,t-1] → [xᵢ,t] - 128 Unidades)
-        # - Camada Densa = 1 neurônio. Previsao. Input: ht (último estado oculto) pertencente a R128. y^​=w'hT​+b. output_shape=(qtd. registros, 1).
-        neuron=128
         model = Sequential()
-        model.add(LSTM(units = neuron,input_shape=(trainX.shape[1], trainX.shape[2])))
-        model.add(Dense(1))
-        optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
-        model.compile(loss='mse',optimizer=optimizer)
 
-        model.fit(trainX, y, epochs = epochs, batch_size = batch_size,verbose=0)
+        model.add(
+            LSTM(
+                units=neuron,
+                input_shape=(
+                    trainX_lstm.shape[1],
+                    trainX_lstm.shape[2]
+                )
+            )
+        )
 
-         # make predictions
-        y_pred_train = model.predict(trainX)
-        y_pred_test = model.predict(testX)
-        
-        y_pred_test= numpy.array(y_pred_test).ravel()
-        y_pred_test=pd.DataFrame(y_pred_test)
-        y1=pd.DataFrame(y1)
-        y=pd.DataFrame(y)
-        y_pred_train= numpy.array(y_pred_train).ravel()
-        y_pred_train=pd.DataFrame(y_pred_train)
+        model.add(
+            Dense(1)
+        )
 
-        y_test= sc_y.inverse_transform (y1)
-        y_train= sc_y.inverse_transform (y)
+        optimizer = tf.keras.optimizers.Adam(
+            learning_rate=learning_rate
+        )
 
-        y_pred_test1= sc_y.inverse_transform (y_pred_test)
-        y_pred_train1= sc_y.inverse_transform (y_pred_train)
+        model.compile(
+            loss='mse',
+            optimizer=optimizer
+        )
 
+        # ========================================================
+        # 12. Treinamento
+        # ========================================================
 
-        pred_test.append(y_pred_test1)
-        test_ori.append(y_test)
-        pred_train.append(y_pred_train1)
-        train_ori.append(y_train)
+        model.fit(
+            trainX_lstm,
+            y,
+            epochs=epochs,
+            batch_size=batch_size,
+            verbose=0
+        )
 
+        # ========================================================
+        # 13. Previsões
+        # ========================================================
 
-    result_pred_test= pd.DataFrame.from_records(pred_test)
-    result_pred_train= pd.DataFrame.from_records(pred_train)
+        y_pred_train = model.predict(
+            trainX_lstm,
+            verbose=0
+        )
 
+        y_pred_test = model.predict(
+            testX_lstm,
+            verbose=0
+        )
 
-    a=result_pred_test.sum(axis = 0, skipna = True) 
-    b=result_pred_train.sum(axis = 0, skipna = True) 
+        y_pred_train = np.asarray(
+            y_pred_train
+        ).ravel()
 
+        y_pred_test = np.asarray(
+            y_pred_test
+        ).ravel()
 
-    dataframe=pd.DataFrame(dfs)
-    dataset=dataframe.values
+        # ========================================================
+        # 14. Retorna à escala original
+        # ========================================================
 
-    train_size = int(len(dataset) * data_partition)
-    test_size = len(dataset) - train_size
-    train, test = dataset[0:train_size], dataset[train_size:len(dataset)]
+        y_train_original = sc_y.inverse_transform(
+            y.reshape(-1, 1)
+        ).ravel()
 
-    trainX, trainY = create_dataset(train, look_back)
-    testX, testY = create_dataset(test, look_back)
-    X_train=pd.DataFrame(trainX)
-    Y_train=pd.DataFrame(trainY)
-    X_test=pd.DataFrame(testX)
-    Y_test=pd.DataFrame(testY)
+        y_test_original = sc_y.inverse_transform(
+            y1.reshape(-1, 1)
+        ).ravel()
 
-    sc_X = StandardScaler()
-    sc_y = StandardScaler() 
-    X= sc_X.fit_transform(X_train)
-    y= sc_y.fit_transform(Y_train)
-    X1= sc_X.fit_transform(X_test)
-    y1= sc_y.fit_transform(Y_test)
-    y=y.ravel()
-    y1=y1.ravel()
+        y_pred_train_original = sc_y.inverse_transform(
+            y_pred_train.reshape(-1, 1)
+        ).ravel()
 
-    import numpy
+        y_pred_test_original = sc_y.inverse_transform(
+            y_pred_test.reshape(-1, 1)
+        ).ravel()
 
-    trainX = numpy.reshape(X, (X.shape[0], 1, X.shape[1]))
-    testX = numpy.reshape(X1, (X1.shape[0], 1, X1.shape[1]))
+        # ========================================================
+        # 15. Armazena resultados
+        # ========================================================
 
-    numpy.random.seed(1234)
-    import tensorflow as tf
+        pred_test.append(
+            y_pred_test_original
+        )
 
-    y1=pd.DataFrame(y1)
-    y=pd.DataFrame(y)
+        test_ori.append(
+            y_test_original
+        )
 
-    y_test= sc_y.inverse_transform (y1)
-    y_train= sc_y.inverse_transform (y)
+        pred_train.append(
+            y_pred_train_original
+        )
 
+        train_ori.append(
+            y_train_original
+        )
 
-    a= pd.DataFrame(a)    
-    y_test= pd.DataFrame(y_test)    
+    # ============================================================
+    # 16. Soma das previsões das componentes
+    # ============================================================
 
+    result_pred_test = pd.DataFrame.from_records(
+        pred_test
+    )
 
-    #summarize the fit of the model
-    mask = y_test != 0
-    mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
-    classic_mape = np.mean(
-        np.abs((y_test[mask] - a[mask]) / y_test[mask])
+    result_pred_train = pd.DataFrame.from_records(
+        pred_train
+    )
+
+    # Soma cada componente
+    a = result_pred_test.sum(
+        axis=0,
+        skipna=True
+    )
+
+    b = result_pred_train.sum(
+        axis=0,
+        skipna=True
+    )
+
+    # ============================================================
+    # 17. Série original P_avg
+    # ============================================================
+
+    dataframe = pd.DataFrame(
+        dfs
+    )
+
+    dataset = dataframe.values.astype(float)
+
+    train_size = int(
+        len(dataset) * data_partition
+    )
+
+    train = dataset[:train_size]
+    test = dataset[train_size:]
+
+    trainX, trainY = create_dataset(
+        train,
+        look_back
+    )
+
+    testX, testY = create_dataset(
+        test,
+        look_back
+    )
+
+    # ============================================================
+    # 18. Valores reais do teste
+    # ============================================================
+
+    # Aqui NÃO precisamos normalizar novamente.
+    #
+    # testY já está na escala original de P_avg.
+
+    y_test = np.asarray(
+        testY
+    ).ravel()
+
+    y_test = pd.DataFrame(
+        y_test
+    )
+
+    # ============================================================
+    # 19. Ajuste de tamanho
+    # ============================================================
+
+    a = np.asarray(a).ravel()
+
+    min_size = min(
+        len(y_test),
+        len(a)
+    )
+
+    y_test = y_test.iloc[
+        :min_size
+    ].reset_index(drop=True)
+
+    a = a[
+        :min_size
+    ]
+
+    a = pd.DataFrame(
+        a
+    )
+
+    # ============================================================
+    # 20. Métricas
+    # ============================================================
+
+    y_test_values = y_test.values.ravel()
+    pred_values = a.values.ravel()
+
+    # MAPE modificado pelo cap
+    mape = np.mean(
+        np.abs(
+            y_test_values - pred_values
+        ) / cap
     ) * 100
-    rmse= sqrt(mean_squared_error(y_test,a))
-    mae=metrics.mean_absolute_error(y_test,a)
 
-    
-    print('MAPE',mape)
-    print('Classic MAPE', classic_mape)
-    print('RMSE',rmse)
-    print('MAE',mae)
+    # MAPE clássico
+    mask = y_test_values != 0
 
-    dates = pd.to_datetime(data1['Date'].iloc[
-        train_size + look_back:
-        train_size + look_back + len(y_test)
-    ])
+    if np.any(mask):
 
+        classic_mape = np.mean(
+            np.abs(
+                (
+                    y_test_values[mask]
+                    -
+                    pred_values[mask]
+                )
+                /
+                y_test_values[mask]
+            )
+        ) * 100
 
-    # Save the real and predict values
-    np.savetxt(os.path.join(BASE_DIR, 'y_test.txt'), y_test.values.flatten(), fmt='%.6f')
-    np.savetxt(os.path.join(BASE_DIR, 'y_pred_proposed_method_hilbert_emd_lib.txt'), a.values.flatten(), fmt='%.6f')
+    else:
 
-    np.savetxt(os.path.join(BASE_DIR, 'dates.txt'), dates.astype(str), fmt='%s')
+        classic_mape = np.nan
 
-    return y_test.values.flatten(), a.values.flatten(), dates.astype(str)
+    # RMSE
+    rmse = sqrt(
+        mean_squared_error(
+            y_test_values,
+            pred_values
+        )
+    )
 
+    # MAE
+    mae = mean_absolute_error(
+        y_test_values,
+        pred_values
+    )
+
+    print(
+        'MAPE',
+        mape
+    )
+
+    print(
+        'Classic MAPE',
+        classic_mape
+    )
+
+    print(
+        'RMSE',
+        rmse
+    )
+
+    print(
+        'MAE',
+        mae
+    )
+
+    # ============================================================
+    # 21. Datas correspondentes ao teste
+    # ============================================================
+
+    dates = pd.to_datetime(
+        data1['Date'].iloc[
+            train_size + look_back:
+            train_size + look_back + min_size
+        ]
+    )
+
+    # ============================================================
+    # 22. Salvamento
+    # ============================================================
+
+    np.savetxt(
+        os.path.join(
+            BASE_DIR,
+            'y_test.txt'
+        ),
+        y_test_values,
+        fmt='%.6f'
+    )
+
+    np.savetxt(
+        os.path.join(
+            BASE_DIR,
+            'y_pred_proposed_method_hilbert_emd_lib.txt'
+        ),
+        pred_values,
+        fmt='%.6f'
+    )
+
+    np.savetxt(
+        os.path.join(
+            BASE_DIR,
+            'dates.txt'
+        ),
+        dates.astype(str),
+        fmt='%s'
+    )
+
+    # ============================================================
+    # 23. Retorno
+    # ============================================================
+
+    return (
+        y_test_values,
+        pred_values,
+        dates.astype(str)
+    )
 
 
 ##Proposed Method Hybrid CEEMDAN-EWT LSTM with Stable Layer

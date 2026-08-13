@@ -11,10 +11,12 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
+RUN python3 -m pip install --upgrade pip==21.3.1
+
 COPY requirements_docker.txt .
 
 # NÃO inclui o tensorflow no requirements
-RUN pip install -r requirements_docker.txt
+RUN python3 -m pip install --no-cache-dir -r requirements_docker.txt
 
 COPY . .
 
