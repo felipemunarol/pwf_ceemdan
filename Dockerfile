@@ -1,9 +1,12 @@
 # Commands: 
 #   - docker build -t ceemdan-model:v1 .
-#   - executa em cpu: docker run -it -v "${PWD}:/app" ceemdan-model:v1
-#   - executa em cpu (alternativa direto do container): docker run -it --entrypoint bash -v "${PWD}:/app" ceemdan-model:v1
-#   (após entrar executar python3 run_frande.py)
-#   - executa em gpu: docker run -it --gpus all -v "${PWD}:/app" ceemdan-model:v1
+#   - executa em cpu (execução dentro do container): 
+#           - docker run -it --entrypoint bash -v "${PWD}:/app" ceemdan-model:v1
+#           - Após entrar execute python3 run_france.py
+
+# Alternativas:
+#    - executa diretamente em cpu: docker run -it -v "${PWD}:/app" ceemdan-model:v1
+#    - executa em gpu: docker run -it --gpus all -v "${PWD}:/app" ceemdan-model:v1
 
 FROM tensorflow/tensorflow:2.3.0
 
@@ -11,7 +14,14 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-RUN python3 -m pip install --upgrade pip==21.3.1
+# Fixar ferramentas compatíveis com Python 3.6
+RUN python3 -m pip install --no-cache-dir \
+    pip==21.3.1 \
+    setuptools==59.6.0 \
+    wheel==0.37.1
+
+RUN pip3 install --no-cache-dir \
+    keras==2.4.3
 
 # =========================
 # Wheels locais
@@ -41,6 +51,11 @@ RUN pip3 install --no-cache-dir \
 
 RUN pip3 install --no-cache-dir \
     scipy==1.4.1
+
+# Dependência para o matplotlib
+RUN pip3 install --no-cache-dir \
+    cycler==0.10.0 \
+    kiwisolver==1.3.1
 
 RUN pip3 install --no-index --no-cache-dir --no-deps \
     /tmp/matplotlib-3.3.4-cp36-cp36m-manylinux1_x86_64.whl

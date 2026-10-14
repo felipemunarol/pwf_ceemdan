@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
 import os
 from PyEMD import CEEMDAN
 from scipy.signal import hilbert
@@ -14,7 +12,7 @@ import numpy
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 os.environ["TF_DETERMINISTIC_OPS"] = "1"
 os.environ["PYTHONHASHSEED"] = "1234"
-from tensorflow import keras
+import tensorflow as tf
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import LSTM
@@ -44,228 +42,139 @@ epochs=10
 #convert an array of values into a dataset matrix
 def create_dataset(dataset, look_back=1):
     dataX, dataY = [], []
-    for i in range(len(dataset)-look_back-1):
+    for i in range(len(dataset)-look_back):
         a = dataset[i:(i+look_back), 0]
         dataX.append(a)
         dataY.append(dataset[i + look_back, 0])
     return numpy.array(dataX), numpy.array(dataY)
 
-import tensorflow as tf
+# =============================================================================
+# DIRECT MODELS
+# =============================================================================
 
-def run_pipeline(datasets, data1, look_back, model_func,
-                 use_cv=False, n_splits=3, data_partition=0.7, cap=None):
+def svr_model(datasets, look_back, data_partition=0.7, cap=None):
 
-    # =========================
-    # TREINO PADRÃO
-    # =========================
-    def run_model(train, test):
+    datasets = np.asarray(datasets).reshape(-1, 1)
 
-        trainX, trainY = create_dataset(train, look_back)
-        testX, testY = create_dataset(test, look_back)
-
-        # manter exatamente como no código antigo
-        X_train = pd.DataFrame(trainX)
-        Y_train = pd.DataFrame(trainY)
-        X_test  = pd.DataFrame(testX)
-        Y_test  = pd.DataFrame(testY)
-
-        sc_X = StandardScaler()
-        sc_y = StandardScaler()
-
-        # igual ao antigo (fit_transform em ambos)
-        X  = sc_X.fit_transform(X_train)
-        X1 = sc_X.fit_transform(X_test)
-
-        y  = sc_y.fit_transform(Y_train).ravel()
-        y1 = sc_y.fit_transform(Y_test).ravel()
-
-        # modelo
-        y_pred_scaled = model_func(X, y, X1)
-
-        # inverter escala
-        y_pred = sc_y.inverse_transform(
-            np.asarray(y_pred_scaled).reshape(-1,1)
-        ).ravel()
-
-        y_test = sc_y.inverse_transform(
-            np.asarray(y1).reshape(-1,1)
-        ).ravel()
-
-        # métricas
-        mask = y_test != 0
-        mape = np.mean(np.abs(y_test - y_pred) / cap) * 100
-        classic_mape = np.mean(
-            np.abs((y_test[mask] - y_pred[mask]) / y_test[mask])
-        ) * 100
-        rmse = np.sqrt(np.mean((y_test - y_pred) ** 2))
-        mae  = np.mean(np.abs(y_test - y_pred))
-
-        return mape, classic_mape, rmse, mae, y_test, y_pred
-
-    # =========================
-    # CROSS VALIDATION
-    # =========================
-    if use_cv:
-
-        tscv = TimeSeriesSplit(n_splits=n_splits)
-
-        y_test_all, y_pred_all, dates_all = [], [], []
-        mape_list, classic_map_list, rmse_list, mae_list = [], [], [], []
-
-        for train_index, test_index in tscv.split(datasets):
-
-            train = datasets[train_index]
-            test = datasets[test_index]
-
-            mape, classic_mape, rmse, mae, y_test, y_pred = run_model(train, test)
-
-            mape_list.append(mape)
-            classic_map_list.append(classic_mape)
-            rmse_list.append(rmse)
-            mae_list.append(mae)
-
-            y_test_all.extend(np.asarray(y_test).ravel())
-            y_pred_all.extend(np.asarray(y_pred).ravel())
-
-            valid_idx = test_index[look_back+1:]
-            valid_idx = valid_idx[:len(y_test)]
-
-            dates_fold = pd.to_datetime(data1['Date'].iloc[valid_idx])
-            dates_all.extend(np.asarray(dates_fold).astype(str))
-
-        print("MAPE", np.mean(mape_list))
-        print("Classic_MAPE", np.mean(classic_map_list))
-        print("RMSE", np.mean(rmse_list))
-        print("MAE", np.mean(mae_list))
-
-        return (
-            np.asarray(y_test_all),
-            np.asarray(y_pred_all),
-            np.asarray(dates_all)
-        )
-
-    # =========================
-    # HOLD OUT
-    # =========================
     train_size = int(len(datasets) * data_partition)
 
     train = datasets[:train_size]
     test = datasets[train_size:]
 
-    mape, classic_mape, rmse, mae, y_test, y_pred = run_model(train, test)
+    trainX, trainY = create_dataset(train, look_back)
+    testX, testY = create_dataset(test, look_back)
 
-    print("MAPE", mape)
-    print("Classic_map", classic_mape)
-    print("RMSE", rmse)
-    print("MAE", mae)
+    sc_X = StandardScaler()
+    sc_y = StandardScaler()
 
-    dates = pd.to_datetime(data1['Date'].iloc[
-        train_size + look_back:
-        train_size + look_back + len(y_test)
-    ])
+    X_train = sc_X.fit_transform(trainX)
+    X_test = sc_X.transform(testX)
 
-    return (
-        np.asarray(y_test),
-        np.asarray(y_pred),
-        np.asarray(dates).astype(str)
+    y_train = sc_y.fit_transform(
+        np.asarray(trainY).reshape(-1, 1)
+    ).ravel()
+
+    model = SVR(kernel="rbf")
+    model.fit(X_train, y_train)
+
+    y_pred_scaled = model.predict(X_test)
+
+    y_pred = sc_y.inverse_transform(
+        y_pred_scaled.reshape(-1, 1)
+    ).ravel()
+
+    y_test = np.asarray(testY).ravel()
+
+    return y_test, y_pred
+
+def ann_model(datasets, look_back, data_partition=0.7, cap=None):
+
+    # ==========================================================
+    # PREPARAÇÃO DOS DADOS
+    # ==========================================================
+    datasets = np.asarray(datasets).reshape(-1, 1)
+
+    train_size = int(len(datasets) * data_partition)
+
+    train = datasets[:train_size]
+    test = datasets[train_size:]
+
+    # ==========================================================
+    # CRIAÇÃO DAS SEQUÊNCIAS TEMPORAIS
+    # ==========================================================
+    trainX, trainY = create_dataset(train, look_back)
+    testX, testY = create_dataset(test, look_back)
+
+    if len(trainX) == 0 or len(testX) == 0:
+        raise ValueError(
+            "Dados insuficientes para criar as sequências. "
+            "Verifique look_back e o tamanho dos folds."
+        )
+
+    X_train = np.asarray(trainX)
+    X_test = np.asarray(testX)
+
+    y_train = np.asarray(trainY).reshape(-1, 1)
+    y_test = np.asarray(testY).ravel()
+
+    # ==========================================================
+    # NORMALIZAÇÃO
+    # ==========================================================
+    sc_X = StandardScaler()
+    sc_y = StandardScaler()
+
+    X_train = sc_X.fit_transform(X_train)
+    X_test = sc_X.transform(X_test)
+
+    y_train = sc_y.fit_transform(y_train).ravel()
+
+    # ==========================================================
+    # FORMATO DA ENTRADA DA ANN
+    # ==========================================================
+    X_train = X_train.reshape(
+        X_train.shape[0], 1, X_train.shape[1]
     )
 
-# =============================================================================
-# DIRECT MODELS
-# =============================================================================
-
-def svr_model(new_data, i, look_back, data_partition, cap,
-              use_cv=False, n_splits=3):
-
-    import numpy as np
-    from sklearn.svm import SVR
-
-    x = i
-    data1 = new_data.loc[new_data['Month'].isin(x)]
-    data1 = data1.reset_index(drop=True).dropna()
-
-    datasets = data1['P_avg'].values.reshape(-1, 1)
-
-    # =========================
-    # modelo plugável
-    # =========================
-    def model_func(X_train, y_train, X_test):
-
-        model = SVR(kernel='rbf')
-        model.fit(X_train, y_train)
-
-        return model.predict(X_test)
-
-    y_test, y_pred, dates = run_pipeline(
-        datasets=datasets,
-        data1=data1,
-        look_back=look_back,
-        model_func=model_func,
-        use_cv=use_cv,
-        n_splits=n_splits,
-        data_partition=data_partition,
-        cap=cap
+    X_test = X_test.reshape(
+        X_test.shape[0], 1, X_test.shape[1]
     )
 
-    suffix = "_cv" if use_cv else ""
+    # ==========================================================
+    # MODELO ANN
+    # ==========================================================
+    model = Sequential()
 
-    np.savetxt(f'y_test{suffix}.txt', y_test, fmt='%.6f')
-    np.savetxt(f'y_pred_svr_model{suffix}.txt', y_pred, fmt='%.6f')
-    np.savetxt(f'dates{suffix}.txt', dates, fmt='%s')
+    model.add(Dense(
+        128,
+        input_shape=(X_train.shape[1], X_train.shape[2])
+    ))
 
-    return y_test, y_pred, dates
+    model.add(Dense(1))
 
-def ann_model(new_data, i, look_back, data_partition, cap,
-              use_cv=False, n_splits=3):
-
-    x = i
-    data1 = new_data.loc[new_data['Month'].isin(x)]
-    data1 = data1.reset_index(drop=True).dropna()
-
-    datasets = data1['P_avg'].values.reshape(-1,1)
-
-    # =========================
-    # modelo ANN plugável
-    # =========================
-    def model_func(X_train, y_train, X_test):
-
-        X_train = np.asarray(X_train)
-        X_test = np.asarray(X_test)
-
-        X_train = np.reshape(X_train, (X_train.shape[0], 1, X_train.shape[1]))
-        X_test  = np.reshape(X_test, (X_test.shape[0], 1, X_test.shape[1]))
-
-        model = Sequential()
-        model.add(Dense(128, input_shape=(X_train.shape[1], X_train.shape[2])))
-        model.add(Dense(1))
-
-        model.compile(loss='mse', optimizer='adam')
-
-        model.fit(X_train, y_train, verbose=0)
-
-        y_pred = model.predict(X_test, verbose=0)
-
-        return y_pred.ravel()
-
-    y_test, y_pred, dates = run_pipeline(
-        datasets=datasets,
-        data1=data1,
-        look_back=look_back,
-        model_func=model_func,
-        use_cv=use_cv,
-        n_splits=n_splits,
-        data_partition=data_partition,
-        cap=cap
+    model.compile(
+        loss="mse",
+        optimizer="adam"
     )
 
-    suffix = "_cv" if use_cv else ""
+    model.fit(
+        X_train,
+        y_train,
+        verbose=0
+    )
 
-    np.savetxt(f'y_test{suffix}.txt', y_test, fmt='%.6f')
-    np.savetxt(f'y_pred_ann_model{suffix}.txt', y_pred, fmt='%.6f')
-    np.savetxt(f'dates{suffix}.txt', dates, fmt='%s')
+    # ==========================================================
+    # PREVISÃO
+    # ==========================================================
+    y_pred_scaled = model.predict(
+        X_test,
+        verbose=0
+    ).ravel()
 
-    return y_test, y_pred, dates
+    y_pred = sc_y.inverse_transform(
+        y_pred_scaled.reshape(-1, 1)
+    ).ravel()
 
+    return y_test, y_pred
 
 ##RF
 def rf_model(new_data,i,look_back,data_partition,cap):
@@ -990,35 +899,34 @@ def ceemdan_lstm(new_data,i,look_back,data_partition,cap):
     print('MAE',mae)
 
 
-def run_cv_hybrid_models(method,
-                 new_data, i,
-                 look_back, cap,
-                 n_splits=3):
-
-    import numpy as np
-    from sklearn.model_selection import TimeSeriesSplit
-
-    data1 = new_data.loc[new_data['Month'].isin(i)]
-    data1 = data1.reset_index(drop=True).dropna()
+# Divide o conjunto de dados para a validação cruzada temporal e passa para o método.
+# O método recebe o conjunto de dados da validação cruzada e a relação de divisão para etapa
+# da validação.
+# Ao final, salva os resultados médios das métricas da validação cruzada e do conjunto de dados.
+def run_cv(method, datasets, dates, look_back, cap, n_splits=3):
 
     tscv = TimeSeriesSplit(n_splits=n_splits)
 
     mape_list, classic_mape_list, rmse_list, mae_list = [], [], [], []
     y_test_all, y_pred_all, dates_all = [], [], []
 
-    for fold, (train_idx, test_idx) in enumerate(tscv.split(data1)):
+    for fold, (train_idx, test_idx) in enumerate(tscv.split(datasets)):
 
-        print(f"\nFold {fold+1} - {method.__name__}")
+        print(f"Executing Fold {fold + 1} - {method.__name__}")
 
-        data_fold = data1.iloc[
-            np.concatenate([train_idx, test_idx])
-        ].reset_index(drop=True).copy()
+        # Dados de treino e teste do fold
+        fold_idx = np.concatenate([train_idx, test_idx])
 
-        split_ratio = len(train_idx) / len(data_fold)
+        datasets_fold = datasets[fold_idx]
+        dates_fold = dates.iloc[fold_idx].reset_index(drop=True)
+        split_ratio = len(train_idx) / len(datasets_fold)
 
-        y_test, y_pred, dates = method(
-            new_data=data_fold,
-            i=data_fold['Month'],
+        dates_pred = dates_fold.iloc[
+            int(len(datasets_fold) * split_ratio) + look_back:
+        ].reset_index(drop=True)
+
+        y_test, y_pred = method(
+            datasets=datasets_fold,
             look_back=look_back,
             data_partition=split_ratio,
             cap=cap
@@ -1039,7 +947,14 @@ def run_cv_hybrid_models(method,
 
         y_test_all.extend(y_test)
         y_pred_all.extend(y_pred)
-        dates_all.extend(dates)
+        dates_all.extend(dates_pred)
+
+    assert len(y_test_all) == len(y_pred_all) == len(dates_all), (
+        f"Tamanhos diferentes: "
+        f"y_test={len(y_test_all)}, "
+        f"y_pred={len(y_pred_all)}, "
+        f"dates={len(dates_all)}"
+    )
 
     print("\n===== CV RESULTS =====")
     print("Model:", method.__name__)
@@ -1073,17 +988,9 @@ def run_cv_hybrid_models(method,
 
 
 ##Proposed Method Hybrid CEEMDAN-EWT LSTM
-def proposed_method(new_data,i,look_back,data_partition,cap, save=True):
+def proposed_method(datasets,look_back,data_partition,cap, save=True):
 
-    x=i
-    data1=new_data.loc[new_data['Month'].isin(x)]
-    data1=data1.reset_index(drop=True)
-    data1=data1.dropna()
-    
-    datas=data1['P_avg']
-    datas_wind=pd.DataFrame(datas)
-    dfs=datas
-    s = dfs.values
+    s = np.asarray(datasets).reshape(-1)
 
     emd = CEEMDAN(epsilon=0.05)
     emd.noise_seed(12345)
@@ -1096,10 +1003,7 @@ def proposed_method(new_data,i,look_back,data_partition,cap, save=True):
     ceemdan1=full_imf.T
     
     imf1=ceemdan1.iloc[:,0]
-    imf_dataps=np.array(imf1)
-    imf_datasetss= imf_dataps.reshape(-1,1)
-    imf_new_datasets=pd.DataFrame(imf_datasetss)
-
+    
     import ewtpy
 
     ewt,  mfb ,boundaries = ewtpy.EWT1D(imf1, N =3)
@@ -1200,7 +1104,7 @@ def proposed_method(new_data,i,look_back,data_partition,cap, save=True):
 
 
     a=result_pred_test.sum(axis = 0, skipna = True) 
-    b=result_pred_train.sum(axis = 0, skipna = True) 
+    b=result_pred_train.sum(axis = 0, skipna = True)
 
 
     dataframe=pd.DataFrame(dfs)
@@ -1647,7 +1551,7 @@ def proposed_method_hilbert_transform_EMD_library(
 
     imf1 = ceemdan1.iloc[:, 0].values
 
-    ewt, mfb, boundaries = ewtpy.EWT1D(
+    ewt, mfb, boundaries =  ewtpy.EWT1D(
         imf1,
         N=3
     )
