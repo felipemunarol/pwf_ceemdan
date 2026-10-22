@@ -1,25 +1,20 @@
 import os
-os.environ["PYTHONUNBUFFERED"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["NUMEXPR_NUM_THREADS"] = "1"
-os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+os.environ["AUTOGRAPH_VERBOSITY"] = "0"
+
+import logging
+logging.getLogger("tensorflow").setLevel(logging.FATAL)
+
+import tensorflow as tf
+tf.get_logger().setLevel(logging.FATAL)
+tf.autograph.set_verbosity(0)
+
+from tensorflow.keras import backend as K
 
 import faulthandler
 faulthandler.enable()
 
-import sys
-
-# Evita carregar a visualização opcional do PyEMD.
-# O projeto utiliza o CEEMDAN para decomposição, não para plotagem.
-sys.modules["PyEMD.visualisation"] = None
-
-
-import tensorflow as tf
 import gc
-from tensorflow.keras import backend as K
-
 import pandas as pd
 
 from myfunctions_france_felipe import \

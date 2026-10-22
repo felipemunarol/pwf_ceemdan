@@ -9,6 +9,11 @@ import math
 import tensorflow as tf
 import numpy
 from tensorflow import keras
+
+import os
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+tf.get_logger().setLevel("FATAL")
+
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import LSTM
@@ -180,7 +185,7 @@ def ann_model(new_data,i,look_back,data_partition,cap):
     
     
     import os 
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+    
     from keras.models import Sequential
     from tensorflow.keras.layers import Dense, Dropout, Activation, LSTM
 
@@ -356,7 +361,7 @@ def lstm_model(new_data,i,look_back,data_partition,cap):
     
     
     import os 
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+    
     from keras.models import Sequential
     from keras.layers import Dense, Dropout, Activation, LSTM
     from keras.layers import LSTM
@@ -467,7 +472,7 @@ def emd_lstm(new_data,i,look_back,data_partition,cap):
 
     
         import os 
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+        
         from keras.models import Sequential
         from keras.layers import Dense, Dropout, Activation, LSTM
         from keras.layers import LSTM
@@ -644,7 +649,7 @@ def eemd_lstm(new_data,i,look_back,data_partition,cap):
 
     
         import os 
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+        
         from keras.models import Sequential
         from keras.layers import Dense, Dropout, Activation, LSTM
         from keras.layers import LSTM
@@ -820,7 +825,7 @@ def ceemdan_lstm(new_data,i,look_back,data_partition,cap):
 
     
         import os 
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+        
         from keras.models import Sequential
         from keras.layers import Dense, Dropout, Activation, LSTM
         from keras.layers import LSTM
@@ -1010,7 +1015,7 @@ def proposed_method(new_data,i,look_back,data_partition,cap):
         
     
         import os 
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+        
         from keras.models import Sequential
         from keras.layers import Dense, Dropout, Activation, LSTM
         from keras.layers import LSTM

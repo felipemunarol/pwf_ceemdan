@@ -2,17 +2,29 @@
 # coding: utf-8
 
 import os
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+os.environ["AUTOGRAPH_VERBOSITY"] = "0"
+os.environ["PYTHONHASHSEED"] = "1234"
+
 from PyEMD import CEEMDAN
 from scipy.signal import hilbert
 import ewtpy
 import math
 import tensorflow as tf
 import numpy
-# Ajusta configurações do tensorflow
-os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
-os.environ["TF_DETERMINISTIC_OPS"] = "1"
-os.environ["PYTHONHASHSEED"] = "1234"
+
+import warnings
+import logging
+warnings.filterwarnings("ignore", category=FutureWarning)
+logging.getLogger("tensorflow").setLevel(logging.FATAL)
+
 import tensorflow as tf
+tf.get_logger().setLevel("FATAL")
+tf.autograph.set_verbosity(0)
+tf.config.threading.set_intra_op_parallelism_threads(1)
+tf.config.threading.set_inter_op_parallelism_threads(1)
+
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import LSTM
@@ -37,7 +49,7 @@ from sklearn.svm import SVR
 
 from math import sqrt
 
-epochs=5
+epochs=10
 
 #convert an array of values into a dataset matrix
 def create_dataset(dataset, look_back=1):
@@ -318,7 +330,7 @@ def lstm_model(new_data,i,look_back,data_partition,cap):
     
     
     import os 
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+    
     from tensorflow.keras.models import Sequential
     from tensorflow.keras.layers import Dense, Dropout, Activation
     from tensorflow.keras.layers import LSTM
@@ -432,7 +444,7 @@ def emd_lstm(new_data,i,look_back,data_partition,cap):
 
     
         import os 
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+        
         from tensorflow.keras.models import Sequential
         from tensorflow.keras.layers import Dense, Dropout, Activation
         from tensorflow.keras.layers import LSTM
@@ -613,7 +625,7 @@ def eemd_lstm(new_data,i,look_back,data_partition,cap):
 
     
         import os 
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+        
         from tensorflow.keras.models import Sequential
         from tensorflow.keras.layers import Dense, Dropout, Activation
         from tensorflow.keras.layers import LSTM
@@ -793,7 +805,7 @@ def ceemdan_lstm(new_data,i,look_back,data_partition,cap):
 
     
         import os 
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+        
         from tensorflow.keras.models import Sequential
         from tensorflow.keras.layers import Dense, Dropout, Activation
         from tensorflow.keras.layers import LSTM
@@ -990,33 +1002,50 @@ def run_cv(method, datasets, dates, look_back, cap, n_splits=3):
 ##Proposed Method Hybrid CEEMDAN-EWT LSTM
 def proposed_method(datasets,look_back,data_partition,cap, save=True):
 
-    s = np.asarray(datasets).reshape(-1)
+    # Prepara o sinal para o CEEMDAN
+    s = np.ascontiguousarray(
+        np.asarray(datasets, dtype=np.float64).reshape(-1)
+    )
 
-    # Paralelismo desativado
-    emd = CEEMDAN(epsilon=0.05, parallel=False)
+    print("\nDEBUG CEEMDAN", flush=True)
+    print("Tamanho:", s.shape, flush=True)
+    print("Tipo:", s.dtype, flush=True)
+    print("Contíguo:", s.flags["C_CONTIGUOUS"], flush=True)
+    print("Todos finitos:", np.isfinite(s).all(), flush=True)
+
+    if not np.isfinite(s).all():
+        raise ValueError("O sinal contém NaN ou infinito antes do CEEMDAN.")
+
+    if len(s) < 3:
+        raise ValueError("Sinal muito curto para a decomposição CEEMDAN.")
+
+    print("Mínimo:", np.min(s), flush=True)
+    print("Máximo:", np.max(s), flush=True)
+    print("Valores únicos:", np.unique(s).size, flush=True)
+
+    print("DEBUG: iniciando CEEMDAN", flush=True)
+
+    emd = CEEMDAN(
+        trials=10,
+        epsilon=0.05,
+        parallel=False
+    )
+
     emd.noise_seed(12345)
 
-    print("DEBUG CEEMDAN: shape =", s.shape, flush=True)
-    print("DEBUG CEEMDAN: dtype =", s.dtype, flush=True)
-    print("DEBUG CEEMDAN: tamanho =", s.size, flush=True)
-    print("DEBUG CEEMDAN: finitos =", np.isfinite(s).all(), flush=True)
-    print("DEBUG CEEMDAN: contíguo =", s.flags["C_CONTIGUOUS"], flush=True)
-    print("DEBUG CEEMDAN: min/max =", np.min(s), np.max(s), flush=True)
+    IMFs = emd.ceemdan(s)
 
-    IMFs = emd(s)
+    print("DEBUG: CEEMDAN concluído", flush=True)
+    print("Shape IMFs:", IMFs.shape, flush=True)
 
-    full_imf=pd.DataFrame(IMFs)
-    print("Quantidade IMFs", full_imf.shape[0])
-
-    print("DEBUG 1: iniciando EWT", flush=True)
+    full_imf = pd.DataFrame(IMFs)
+    print("Quantidade IMFs", full_imf.shape[0], flush=True)
 
     ceemdan1=full_imf.T
     
     imf1=ceemdan1.iloc[:,0]
 
     ewt,  mfb ,boundaries = ewtpy.EWT1D(imf1, N =3)
-
-    print("DEBUG 2: EWT concluída", flush=True)
 
     df_ewt=pd.DataFrame(ewt)
 
@@ -1036,93 +1065,129 @@ def proposed_method(datasets,look_back,data_partition,cap, save=True):
 
     for col in new_ceemdan:
 
-        datasetss2=pd.DataFrame(new_ceemdan[col])
-        datasetss2=datasetss2.values
+        datasetss2 = new_ceemdan[col].to_numpy(dtype=np.float32).reshape(-1, 1)
+
         train_size = int(len(datasetss2) * data_partition)
-        test_size = len(datasetss2) - train_size
-        train, test = datasetss2[0:train_size], datasetss2[train_size:len(datasetss2)]
+        train = datasetss2[:train_size]
+        test = datasetss2[train_size:]
 
         trainX, trainY = create_dataset(train, look_back)
         testX, testY = create_dataset(test, look_back)
-        X_train=pd.DataFrame(trainX)
-        Y_train=pd.DataFrame(trainY)
-        X_test=pd.DataFrame(testX)
-        Y_test=pd.DataFrame(testY)
+
+        # Verifica se existem amostras suficientes
+        if len(trainX) == 0 or len(testX) == 0:
+            raise ValueError(
+                "Fold sem amostras suficientes: "
+                "trainX={}, testX={}, look_back={}".format(
+                    len(trainX), len(testX), look_back
+                )
+            )
+
+        # Preparação dos dados
+        trainX = np.asarray(trainX, dtype=np.float32)
+        testX = np.asarray(testX, dtype=np.float32)
+        trainY = np.asarray(trainY, dtype=np.float32).reshape(-1, 1)
+        testY = np.asarray(testY, dtype=np.float32).reshape(-1, 1)
+
         sc_X = StandardScaler()
         sc_y = StandardScaler()
-        
-        X= sc_X.fit_transform(X_train)
-        y= sc_y.fit_transform(Y_train)
-        X1= sc_X.fit_transform(X_test)
-        y1= sc_y.fit_transform(Y_test)
-        y=y.ravel()
-        y1=y1.ravel()  
 
-        trainX = np.reshape(X, (X.shape[0], X.shape[1],1))
-        testX = np.reshape(X1, (X1.shape[0], X1.shape[1],1))
+        # Ajusta os escaladores somente com os dados de treino
+        X = sc_X.fit_transform(
+            trainX.reshape(-1, trainX.shape[-1])
+        ).reshape(trainX.shape)
+
+        X1 = sc_X.transform(
+            testX.reshape(-1, testX.shape[-1])
+        ).reshape(testX.shape)
+
+        y = sc_y.fit_transform(trainY)
+        y1 = sc_y.transform(testY)
+
+        # Formato esperado pela LSTM: (amostras, passos temporais, features)
+        trainX = np.ascontiguousarray(X.reshape(X.shape[0], X.shape[1], 1))
+        testX = np.ascontiguousarray(X1.reshape(X1.shape[0], X1.shape[1], 1))
+
+        y = np.ascontiguousarray(y.reshape(-1), dtype=np.float32)
+        y1 = np.ascontiguousarray(y1.reshape(-1), dtype=np.float32)
+
+        # Diagnóstico antes do treinamento
+        print(
+            "DEBUG shapes:",
+            "trainX =", trainX.shape,
+            "y =", y.shape,
+            "testX =", testX.shape,
+            "y1 =", y1.shape,
+            flush=True
+        )
+
+        if not (
+            np.isfinite(trainX).all()
+            and np.isfinite(testX).all()
+            and np.isfinite(y).all()
+            and np.isfinite(y1).all()
+        ):
+            raise ValueError("NaN ou infinito encontrado nos dados de treinamento.")
+
+        import gc
+        import tensorflow as tf
+        from tensorflow.keras import backend as K
+
+        K.clear_session()
+        gc.collect()
 
         np.random.seed(1234)
-        import tensorflow as tf
         tf.random.set_seed(1234)
 
-        # LSTM Archithecture Summary:
-        # - input_shape= (qtd. registros/janela temporal, características (1 neste caso)).
-        # - Camada Sequencial = 128 neurônios. ([xᵢ,t-5] → [xᵢ,t-4] → [xᵢ,t-3] → [xᵢ,t-2] → [xᵢ,t-1] → [xᵢ,t] - 128 Unidades)
-        # - Camada Densa = 1 neurônio. Previsao. Input: ht (último estado oculto) pertencente a R128. y^​=w'hT​+b. output_shape=(qtd. registros, 1).
-
-        neuron=128
-        print("DEBUG LSTM: iniciando construção do modelo", flush=True)
+        neuron = 128
 
         model = Sequential()
-        model.add(LSTM(units=neuron,
-                        input_shape=(trainX.shape[1], trainX.shape[2])))
+        model.add(
+            LSTM(
+                units=neuron,
+                input_shape=(trainX.shape[1], trainX.shape[2])
+            )
+        )
         model.add(Dense(1))
+
         optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
-        model.compile(loss='mse', optimizer=optimizer)
+        model.compile(loss="mse", optimizer=optimizer, run_eagerly=True)
 
-        print("DEBUG LSTM: modelo compilado", flush=True)
-        print("DEBUG LSTM: trainX =", trainX.shape,
-            "| y =", y.shape, flush=True)
-        print("DEBUG LSTM: testX =", testX.shape,
-            "| epochs =", epochs,
-            "| batch_size =", batch_size, flush=True)
+        model.fit(
+            trainX,
+            y,
+            epochs=epochs,
+            batch_size=64,
+            verbose=0
+        )
 
-        print("DEBUG LSTM: iniciando model.fit()", flush=True)
-        model.fit(trainX, y, epochs=epochs,
-                batch_size=batch_size, verbose=0)
-        print("DEBUG LSTM: model.fit() concluído", flush=True)
+        y_pred_train = model.predict(trainX, verbose=0)
+        y_pred_test = model.predict(testX, verbose=0)
 
-        print("DEBUG LSTM: iniciando predict(trainX)", flush=True)
-        y_pred_train = model.predict(trainX)
-        print("DEBUG LSTM: predict(trainX) concluído", flush=True)
+        # Retorna à escala original
+        y_train = sc_y.inverse_transform(y.reshape(-1, 1))
+        y_test = sc_y.inverse_transform(y1.reshape(-1, 1))
 
-        print("DEBUG LSTM: iniciando predict(testX)", flush=True)
-        y_pred_test = model.predict(testX)
-        print("DEBUG LSTM: predict(testX) concluído", flush=True)
-
-        y_pred_test= np.array(y_pred_test).ravel()
-        y_pred_test=pd.DataFrame(y_pred_test)
-        y1=pd.DataFrame(y1)
-        y=pd.DataFrame(y)
-        y_pred_train= np.array(y_pred_train).ravel()
-        y_pred_train=pd.DataFrame(y_pred_train)
-
-        y_test= sc_y.inverse_transform (y1)
-        y_train= sc_y.inverse_transform (y)
-
-        y_pred_test1= sc_y.inverse_transform (y_pred_test)
-        y_pred_train1= sc_y.inverse_transform (y_pred_train)
-
+        y_pred_train1 = sc_y.inverse_transform(
+            np.asarray(y_pred_train).reshape(-1, 1)
+        )
+        y_pred_test1 = sc_y.inverse_transform(
+            np.asarray(y_pred_test).reshape(-1, 1)
+        )
 
         pred_test.append(y_pred_test1)
         test_ori.append(y_test)
         pred_train.append(y_pred_train1)
         train_ori.append(y_train)
 
+        # Libera recursos antes de processar a próxima IMF
+        del model
+        K.clear_session()
+        gc.collect()
 
+    # Soma as previsões de todas as componentes
     result_pred_test= pd.DataFrame.from_records(pred_test)
     result_pred_train= pd.DataFrame.from_records(pred_train)
-
 
     a=result_pred_test.sum(axis = 0, skipna = True) 
     b=result_pred_train.sum(axis = 0, skipna = True)
@@ -1143,8 +1208,8 @@ def proposed_method(datasets,look_back,data_partition,cap, save=True):
     sc_y = StandardScaler() 
     X= sc_X.fit_transform(X_train)
     y= sc_y.fit_transform(Y_train)
-    X1= sc_X.fit_transform(X_test)
-    y1= sc_y.fit_transform(Y_test)
+    X1= sc_X.transform(X_test)
+    y1= sc_y.transform(Y_test)
     y=y.ravel()
     y1=y1.ravel()
 
@@ -2147,7 +2212,7 @@ def proposed_method_stable_layer(new_data,i,look_back,data_partition,cap):
         tf.random.set_seed(1234)
 
         import os 
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+        
         from tensorflow.keras.models import Sequential
         from tensorflow.keras.layers import Dense
         from tensorflow.keras.layers import LSTM
@@ -2355,7 +2420,7 @@ def proposed_method_dropout_layer(new_data,i,look_back,data_partition,cap):
         tf.random.set_seed(1234)
 
         import os 
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+        
         from tensorflow.keras.models import Sequential
         from tensorflow.keras.layers import Dense, Dropout, Activation
         from tensorflow.keras.layers import LSTM
@@ -2563,7 +2628,7 @@ def proposed_method_stable_and_dropout_layer(new_data,i,look_back,data_partition
         tf.random.set_seed(1234)
 
         import os 
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+        
         from tensorflow.keras.models import Sequential
         from tensorflow.keras.layers import Dense, Dropout, Activation
         from tensorflow.keras.layers import LSTM
@@ -2772,7 +2837,7 @@ def proposed_method_with_bilstm(new_data,i,look_back,data_partition,cap):
         
     
         import os 
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+        
         from tensorflow.keras.models import Sequential
         from tensorflow.keras.layers import Dense, Dropout, Bidirectional
         from tensorflow.keras.layers import LSTM
@@ -2990,7 +3055,7 @@ def proposed_method_with_gru(new_data,i,look_back,data_partition,cap):
         
     
         import os 
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+        
         from tensorflow.keras.models import Sequential
         from tensorflow.keras.layers import Dense, Dropout, Activation
         from tensorflow.keras.layers import GRU
@@ -3193,7 +3258,7 @@ def proposed_method_with_bigru(new_data,i,look_back,data_partition,cap):
         
     
         import os 
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+        
         from tensorflow.keras.models import Sequential
         from tensorflow.keras.layers import Dense, Dropout, Bidirectional
         from tensorflow.keras.layers import GRU
@@ -3633,7 +3698,7 @@ def proposed_method_with_patchtransformer_tf(new_data,i,look_back,data_partition
         tf.random.set_seed(1234)
 
         import os 
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+        
 
         import torch
         import torch.nn as nn
