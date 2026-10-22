@@ -37,7 +37,7 @@ from sklearn.svm import SVR
 
 from math import sqrt
 
-epochs=10
+epochs=5
 
 #convert an array of values into a dataset matrix
 def create_dataset(dataset, look_back=1):
@@ -992,21 +992,32 @@ def proposed_method(datasets,look_back,data_partition,cap, save=True):
 
     s = np.asarray(datasets).reshape(-1)
 
-    emd = CEEMDAN(epsilon=0.05)
+    # Paralelismo desativado
+    emd = CEEMDAN(epsilon=0.05, parallel=False)
     emd.noise_seed(12345)
+
+    print("DEBUG CEEMDAN: shape =", s.shape, flush=True)
+    print("DEBUG CEEMDAN: dtype =", s.dtype, flush=True)
+    print("DEBUG CEEMDAN: tamanho =", s.size, flush=True)
+    print("DEBUG CEEMDAN: finitos =", np.isfinite(s).all(), flush=True)
+    print("DEBUG CEEMDAN: contíguo =", s.flags["C_CONTIGUOUS"], flush=True)
+    print("DEBUG CEEMDAN: min/max =", np.min(s), np.max(s), flush=True)
 
     IMFs = emd(s)
 
     full_imf=pd.DataFrame(IMFs)
     print("Quantidade IMFs", full_imf.shape[0])
 
+    print("DEBUG 1: iniciando EWT", flush=True)
+
     ceemdan1=full_imf.T
     
     imf1=ceemdan1.iloc[:,0]
-    
-    import ewtpy
 
     ewt,  mfb ,boundaries = ewtpy.EWT1D(imf1, N =3)
+
+    print("DEBUG 2: EWT concluída", flush=True)
+
     df_ewt=pd.DataFrame(ewt)
 
     df_ewt.drop(df_ewt.columns[2],axis=1,inplace=True)
@@ -1026,10 +1037,10 @@ def proposed_method(datasets,look_back,data_partition,cap, save=True):
     for col in new_ceemdan:
 
         datasetss2=pd.DataFrame(new_ceemdan[col])
-        datasets=datasetss2.values
-        train_size = int(len(datasets) * data_partition)
-        test_size = len(datasets) - train_size
-        train, test = datasets[0:train_size], datasets[train_size:len(datasets)]
+        datasetss2=datasetss2.values
+        train_size = int(len(datasetss2) * data_partition)
+        test_size = len(datasetss2) - train_size
+        train, test = datasetss2[0:train_size], datasetss2[train_size:len(datasetss2)]
 
         trainX, trainY = create_dataset(train, look_back)
         testX, testY = create_dataset(test, look_back)
@@ -1054,31 +1065,41 @@ def proposed_method(datasets,look_back,data_partition,cap, save=True):
         import tensorflow as tf
         tf.random.set_seed(1234)
 
-        
-        import os 
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-        from tensorflow.keras.models import Sequential
-        from tensorflow.keras.layers import Dense, Dropout, Activation
-        from tensorflow.keras.layers import LSTM
-
-
         # LSTM Archithecture Summary:
         # - input_shape= (qtd. registros/janela temporal, características (1 neste caso)).
         # - Camada Sequencial = 128 neurônios. ([xᵢ,t-5] → [xᵢ,t-4] → [xᵢ,t-3] → [xᵢ,t-2] → [xᵢ,t-1] → [xᵢ,t] - 128 Unidades)
         # - Camada Densa = 1 neurônio. Previsao. Input: ht (último estado oculto) pertencente a R128. y^​=w'hT​+b. output_shape=(qtd. registros, 1).
+
         neuron=128
+        print("DEBUG LSTM: iniciando construção do modelo", flush=True)
+
         model = Sequential()
-        model.add(LSTM(units = neuron,input_shape=(trainX.shape[1], trainX.shape[2])))
+        model.add(LSTM(units=neuron,
+                        input_shape=(trainX.shape[1], trainX.shape[2])))
         model.add(Dense(1))
         optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
-        model.compile(loss='mse',optimizer=optimizer)
+        model.compile(loss='mse', optimizer=optimizer)
 
-        model.fit(trainX, y, epochs = epochs, batch_size = batch_size,verbose=0)
+        print("DEBUG LSTM: modelo compilado", flush=True)
+        print("DEBUG LSTM: trainX =", trainX.shape,
+            "| y =", y.shape, flush=True)
+        print("DEBUG LSTM: testX =", testX.shape,
+            "| epochs =", epochs,
+            "| batch_size =", batch_size, flush=True)
 
-         # make predictions
+        print("DEBUG LSTM: iniciando model.fit()", flush=True)
+        model.fit(trainX, y, epochs=epochs,
+                batch_size=batch_size, verbose=0)
+        print("DEBUG LSTM: model.fit() concluído", flush=True)
+
+        print("DEBUG LSTM: iniciando predict(trainX)", flush=True)
         y_pred_train = model.predict(trainX)
+        print("DEBUG LSTM: predict(trainX) concluído", flush=True)
+
+        print("DEBUG LSTM: iniciando predict(testX)", flush=True)
         y_pred_test = model.predict(testX)
-        
+        print("DEBUG LSTM: predict(testX) concluído", flush=True)
+
         y_pred_test= np.array(y_pred_test).ravel()
         y_pred_test=pd.DataFrame(y_pred_test)
         y1=pd.DataFrame(y1)
@@ -1107,12 +1128,9 @@ def proposed_method(datasets,look_back,data_partition,cap, save=True):
     b=result_pred_train.sum(axis = 0, skipna = True)
 
 
-    dataframe=pd.DataFrame(dfs)
-    dataset=dataframe.values
-
-    train_size = int(len(dataset) * data_partition)
-    test_size = len(dataset) - train_size
-    train, test = dataset[0:train_size], dataset[train_size:len(dataset)]
+    train_size = int(len(datasets) * data_partition)
+    test_size = len(datasets) - train_size
+    train, test = datasets[0:train_size], datasets[train_size:len(datasets)]
 
     trainX, trainY = create_dataset(train, look_back)
     testX, testY = create_dataset(test, look_back)
@@ -1162,20 +1180,20 @@ def proposed_method(datasets,look_back,data_partition,cap, save=True):
     print('RMSE',rmse)
     print('MAE',mae)
 
-    dates = pd.to_datetime(data1['Date'].iloc[
-        train_size + look_back:
-        train_size + look_back + len(y_test)
-    ])
+    # dates = pd.to_datetime(data1['Date'].iloc[
+    #     train_size + look_back:
+    #     train_size + look_back + len(y_test)
+    # ])
 
-    if save:
+    # if save:
 
         # Save the real and predict values
-        np.savetxt(os.path.join(BASE_DIR, 'y_test.txt'), y_test.values.flatten(), fmt='%.6f')
-        np.savetxt(os.path.join(BASE_DIR, 'y_pred_proposed_method.txt'), a.values.flatten(), fmt='%.6f')
+        # np.savetxt(os.path.join(BASE_DIR, 'y_test.txt'), y_test.values.flatten(), fmt='%.6f')
+        # np.savetxt(os.path.join(BASE_DIR, 'y_pred_proposed_method.txt'), a.values.flatten(), fmt='%.6f')
 
-        np.savetxt(os.path.join(BASE_DIR, 'dates.txt'), dates.astype(str), fmt='%s')
+        # np.savetxt(os.path.join(BASE_DIR, 'dates.txt'), dates.astype(str), fmt='%s')
 
-    return y_test.values.flatten(), a.values.flatten(), dates.astype(str)
+    return y_test.values.flatten(), a.values.flatten()
 
 
 # Proposed Method Hybrid CEEMDAN (without EWT) with Hilbert transform. This is a variation

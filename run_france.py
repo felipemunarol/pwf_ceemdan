@@ -1,7 +1,20 @@
 import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
-os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
+os.environ["PYTHONUNBUFFERED"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+
+import faulthandler
+faulthandler.enable()
+
+import sys
+
+# Evita carregar a visualização opcional do PyEMD.
+# O projeto utiliza o CEEMDAN para decomposição, não para plotagem.
+sys.modules["PyEMD.visualisation"] = None
+
 
 import tensorflow as tf
 import gc
@@ -35,7 +48,11 @@ def clear_memory():
     gc.collect()
 
 df = pd.read_csv('dataset/final_la_haute_R0711.csv')
-df['Date'] = pd.to_datetime(df['Date_time'], format='%m/%d/%Y %H:%M', errors='coerce')
+df['Date'] = pd.to_datetime(
+    df['Date_time'].str.strip(),
+    format='%m/%d/%Y %H:%M',
+    errors='coerce'
+)
 df['Year'] = df['Date'].dt.year 
 df['Month'] = df['Date'].dt.month 
 new_data=df[['Month','Year','Date','P_avg']]
@@ -52,14 +69,14 @@ data1 = data1.reset_index(drop=True).dropna()
 dates = data1['Date']
 datasets = data1['P_avg'].values.reshape(-1, 1)
 
-print('svr_model')
+# print('svr_model')
 # res = svr_model(datasets,dates,look_back,data_partition,cap)
-res = run_cv(method=svr_model, datasets=datasets, dates=dates, look_back=look_back, cap=cap, n_splits=3)
+# res = run_cv(method=svr_model, datasets=datasets, dates=dates, look_back=look_back, cap=cap, n_splits=3)
 
-print('ann_model')
+# print('ann_model')
 # res = ann_model(datasets,dates,look_back,data_partition,cap)
-res = run_cv(method=ann_model, datasets=datasets, dates=dates, look_back=look_back, cap=cap, n_splits=3)
-clear_memory()
+# res = run_cv(method=ann_model, datasets=datasets, dates=dates, look_back=look_back, cap=cap, n_splits=3)
+# clear_memory()
 
 # print('rf_model')
 # res = rf_model(new_data,i,look_back,data_partition,cap)
@@ -80,10 +97,10 @@ clear_memory()
 # res = ceemdan_lstm(new_data,i,look_back,data_partition,cap)
 # clear_memory()
 
-# print('proposed_method')
+print('proposed_method')
 # res = proposed_method(new_data,i,look_back,data_partition,cap)
-# res = run_cv(proposed_method, datasets, look_back=look_back, cap=cap)
-# clear_memory()
+res = run_cv(proposed_method, datasets, dates=dates, look_back=look_back, cap=cap)
+clear_memory()
 
 # print('proposed_method using hilbert transform')
 # proposed_method_hilbert_transform_EMD_library(new_data,i,look_back,data_partition,cap)

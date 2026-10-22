@@ -69,16 +69,27 @@ plt.rcParams.update({
 
 cv = True
 
+dir = "predictions"
+os.makedirs(dir, exist_ok=True)
+
 # =========================
 # 1. Load data
 # =========================
 
 if cv:
-    dates = np.loadtxt('dates_cv.txt', dtype=str)
-    y_test = np.loadtxt('y_test_cv.txt')
+    dates = np.loadtxt(
+        os.path.join(dir, 'dates_cv.txt'), dtype=str
+    )
+    y_test = np.loadtxt(
+        os.path.join(dir, 'y_test_cv.txt')
+    )
 else:
-    dates = np.loadtxt('dates.txt', dtype=str)
-    y_test = np.loadtxt('y_test.txt')
+    dates = np.loadtxt(
+        os.path.join(dir, 'dates.txt'), dtype=str
+    )
+    y_test = np.loadtxt(
+        os.path.join(dir, 'y_test.txt')
+    )
 
 dates = np.asarray(dates).reshape(-1)
 dates = pd.to_datetime(dates, errors='coerce')
@@ -86,7 +97,9 @@ dates = pd.to_datetime(dates, errors='coerce')
 # =========================
 # 2. Load ALL predictions
 # =========================
-pred_files = sorted(glob.glob("y_pred*.txt"))
+pred_files = sorted(glob.glob(
+    os.path.join(dir, "y_pred*.txt")
+))
 
 predictions = {}
 
@@ -109,11 +122,6 @@ for file in sorted(pred_files):
 # =========================
 # 3. Plot
 # =========================
-
-# Pasta de saída
-output_dir = "predsplot"
-os.makedirs(output_dir, exist_ok=True)
-
 for name, y_pred in predictions.items():
 
     try:
@@ -159,7 +167,7 @@ for name, y_pred in predictions.items():
 
         # Nome do arquivo de saída
         output_file = os.path.join(
-            output_dir,
+            dir,
             f"{name}.png"
         )
 
