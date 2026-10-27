@@ -7,7 +7,7 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 os.environ["AUTOGRAPH_VERBOSITY"] = "0"
 os.environ["PYTHONHASHSEED"] = "1234"
 
-from PyEMD import EMD,,EEMD, CEEMDAN
+from PyEMD import EMD, EEMD, CEEMDAN
 from scipy.signal import hilbert
 import ewtpy
 import math
@@ -50,7 +50,11 @@ from sklearn.svm import SVR
 
 from math import sqrt
 
+batch_size = 64
 epochs=10
+lr=0.001
+optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
+neuron=128
 
 #convert an array of values into a dataset matrix
 def create_dataset(dataset, look_back=1):
@@ -61,10 +65,97 @@ def create_dataset(dataset, look_back=1):
         dataY.append(dataset[i + look_back, 0])
     return numpy.array(dataX), numpy.array(dataY)
 
+# Divide o conjunto de dados para a validação cruzada temporal e passa para o método.
+# O método recebe o conjunto de dados da validação cruzada e a relação de divisão para etapa
+# da validação.
+# Ao final, salva os resultados médios das métricas da validação cruzada e do conjunto de dados.
+def run_cv(method, datasets, dates, look_back, cap, n_splits=3):
+
+    tscv = TimeSeriesSplit(n_splits=n_splits)
+
+    mape_list, classic_mape_list, rmse_list, mae_list = [], [], [], []
+    y_test_all, y_pred_all, dates_all = [], [], []
+
+    for fold, (train_idx, test_idx) in enumerate(tscv.split(datasets)):
+
+        print(f"Executing Fold {fold + 1} - {method.__name__}")
+
+        # Dados de treino e teste do fold
+        fold_idx = np.concatenate([train_idx, test_idx])
+
+        datasets_fold = datasets[fold_idx]
+        dates_fold = dates.iloc[fold_idx].reset_index(drop=True)
+        split_ratio = len(train_idx) / len(datasets_fold)
+
+        dates_pred = dates_fold.iloc[
+            int(len(datasets_fold) * split_ratio) + look_back:
+        ].reset_index(drop=True)
+
+        y_test, y_pred = method(
+            datasets=datasets_fold,
+            look_back=look_back,
+            data_partition=split_ratio,
+            cap=cap
+        )
+
+        mask = y_test != 0
+        mape = np.mean(np.abs(y_test - y_pred) / cap) * 100
+        classic_mape = np.mean(
+            np.abs((y_test[mask] - y_pred[mask]) / y_test[mask])
+        ) * 100
+        rmse = np.sqrt(np.mean((y_test - y_pred) ** 2))
+        mae  = np.mean(np.abs(y_test - y_pred))
+
+        mape_list.append(mape)
+        classic_mape_list.append(classic_mape)
+        rmse_list.append(rmse)
+        mae_list.append(mae)
+
+        y_test_all.extend(y_test)
+        y_pred_all.extend(y_pred)
+        dates_all.extend(dates_pred)
+
+    assert len(y_test_all) == len(y_pred_all) == len(dates_all), (
+        f"Tamanhos diferentes: "
+        f"y_test={len(y_test_all)}, "
+        f"y_pred={len(y_pred_all)}, "
+        f"dates={len(dates_all)}"
+    )
+
+    print("\n===== CV RESULTS =====")
+    print("Model:", method.__name__)
+    print("Classic MAPE:", np.mean(classic_mape_list))
+    print("MAPE:", np.mean(mape_list))
+    print("RMSE:", np.mean(rmse_list))
+    print("MAE :", np.mean(mae_list))
+
+    np.savetxt(f'y_test_cv.txt',
+           np.asarray(y_test_all).ravel(),
+           fmt='%.6f')
+
+    np.savetxt(f'y_pred_{method.__name__}_cv.txt',
+            np.asarray(y_pred_all).ravel(),
+            fmt='%.6f')
+
+    np.savetxt('dates_cv.txt',
+            np.asarray(dates_all).astype(str),
+            fmt='%s')
+
+    return {
+        "model": method.__name__,
+        "mape": np.mean(mape_list),
+        "classic_map": np.mean(classic_mape_list),
+        "rmse": np.mean(rmse_list),
+        "mae": np.mean(mae_list),
+        "y_test": np.array(y_test_all),
+        "y_pred": np.array(y_pred_all),
+        "dates": np.array(dates_all)
+    }
+
 # =============================================================================
 # DIRECT MODELS
 # =============================================================================
-
+# SVR
 def svr_model(datasets, look_back, data_partition=0.7, cap=None):
 
     datasets = np.asarray(datasets).reshape(-1, 1)
@@ -100,6 +191,8 @@ def svr_model(datasets, look_back, data_partition=0.7, cap=None):
 
     return y_test, y_pred
 
+
+# ANN
 def ann_model(datasets, look_back, data_partition=0.7, cap=None):
 
     # ==========================================================
@@ -166,7 +259,7 @@ def ann_model(datasets, look_back, data_partition=0.7, cap=None):
 
     model.compile(
         loss="mse",
-        optimizer="adam"
+        optimizer=optimizer
     )
 
     model.fit(
@@ -266,9 +359,6 @@ def rf_model(new_data,i,look_back,data_partition,cap):
     print('MAE',mae)
 
 
-# In[23]:
-
-
 ##LSTM
 def lstm_model(new_data,i,look_back,data_partition,cap):
 
@@ -281,9 +371,7 @@ def lstm_model(new_data,i,look_back,data_partition,cap):
     datas_wind=pd.DataFrame(datas)
     dfs=datas
     s = dfs.values
-    
-    
-    
+        
     datasetss2=pd.DataFrame(s)
     datasets=datasetss2.values
     
@@ -318,14 +406,12 @@ def lstm_model(new_data,i,look_back,data_partition,cap):
     numpy.random.seed(1234)
     tf.random.set_seed(1234)
 
-    neuron=128
     model = Sequential()
     model.add(LSTM(units = neuron,input_shape=(trainX1.shape[1], trainX1.shape[2])))
     model.add(Dense(1))
-    optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
     model.compile(loss='mse',optimizer=optimizer)
 
-    model.fit(trainX1, y, epochs = epochs, batch_size = 64,verbose=0)
+    model.fit(trainX1, y, epochs = epochs, batch_size=batch_size,verbose=0)
   # make predictions
     y_pred_train = model.predict(trainX1)
     y_pred_test = model.predict(testX1)
@@ -359,7 +445,6 @@ def lstm_model(new_data,i,look_back,data_partition,cap):
 # =============================================================================
 
 ##HYBRID EMD LSTM
-
 def emd_lstm(new_data,i,look_back,data_partition,cap):
 
     x=i
@@ -383,10 +468,6 @@ def emd_lstm(new_data,i,look_back,data_partition,cap):
     test_ori=[]
     pred_train=[]
     train_ori=[]
-    batch_size=64
-    neuron=128
-    lr=0.001
-    optimizer='Adam'
 
     for col in data_decomp:
 
@@ -417,11 +498,9 @@ def emd_lstm(new_data,i,look_back,data_partition,cap):
         numpy.random.seed(1234)
         tf.random.set_seed(1234)
 
-        neuron=128
         model = Sequential()
         model.add(LSTM(units = neuron,input_shape=(trainX.shape[1], trainX.shape[2])))
         model.add(Dense(1))
-        optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
         model.compile(loss='mse',optimizer=optimizer)
 
         # Fitting the RNN to the Training set
@@ -520,7 +599,6 @@ def emd_lstm(new_data,i,look_back,data_partition,cap):
 
 
 ##HYBRID EEMD LSTM
-
 def eemd_lstm(new_data,i,look_back,data_partition,cap):
 
     x=i
@@ -547,11 +625,6 @@ def eemd_lstm(new_data,i,look_back,data_partition,cap):
     test_ori=[]
     pred_train=[]
     train_ori=[]
-
-    batch_size=64
-    neuron=128
-    lr=0.001
-    optimizer='Adam'
 
     for col in data_decomp:
 
@@ -582,11 +655,9 @@ def eemd_lstm(new_data,i,look_back,data_partition,cap):
         numpy.random.seed(1234)
         tf.random.set_seed(1234)
 
-        neuron=128
         model = Sequential()
         model.add(LSTM(units = neuron,input_shape=(trainX.shape[1], trainX.shape[2])))
         model.add(Dense(1))
-        optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
         model.compile(loss='mse',optimizer=optimizer)
 
         # Fitting the RNN to the Training set
@@ -706,11 +777,6 @@ def ceemdan_lstm(new_data,i,look_back,data_partition,cap):
     pred_train=[]
     train_ori=[]
 
-    batch_size=64
-    neuron=128
-    lr=0.001
-    optimizer='Adam'
-
     for col in data_decomp:
 
         datasetss2=pd.DataFrame(data_decomp[col])
@@ -740,11 +806,9 @@ def ceemdan_lstm(new_data,i,look_back,data_partition,cap):
         numpy.random.seed(1234)
         tf.random.set_seed(1234)
 
-        neuron=128
         model = Sequential()
         model.add(LSTM(units = neuron,input_shape=(trainX.shape[1], trainX.shape[2])))
         model.add(Dense(1))
-        optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
         model.compile(loss='mse',optimizer=optimizer)
 
 
@@ -839,95 +903,6 @@ def ceemdan_lstm(new_data,i,look_back,data_partition,cap):
     print('RMSE',rmse)
     print('MAE',mae)
 
-
-# Divide o conjunto de dados para a validação cruzada temporal e passa para o método.
-# O método recebe o conjunto de dados da validação cruzada e a relação de divisão para etapa
-# da validação.
-# Ao final, salva os resultados médios das métricas da validação cruzada e do conjunto de dados.
-def run_cv(method, datasets, dates, look_back, cap, n_splits=3):
-
-    tscv = TimeSeriesSplit(n_splits=n_splits)
-
-    mape_list, classic_mape_list, rmse_list, mae_list = [], [], [], []
-    y_test_all, y_pred_all, dates_all = [], [], []
-
-    for fold, (train_idx, test_idx) in enumerate(tscv.split(datasets)):
-
-        print(f"Executing Fold {fold + 1} - {method.__name__}")
-
-        # Dados de treino e teste do fold
-        fold_idx = np.concatenate([train_idx, test_idx])
-
-        datasets_fold = datasets[fold_idx]
-        dates_fold = dates.iloc[fold_idx].reset_index(drop=True)
-        split_ratio = len(train_idx) / len(datasets_fold)
-
-        dates_pred = dates_fold.iloc[
-            int(len(datasets_fold) * split_ratio) + look_back:
-        ].reset_index(drop=True)
-
-        y_test, y_pred = method(
-            datasets=datasets_fold,
-            look_back=look_back,
-            data_partition=split_ratio,
-            cap=cap
-        )
-
-        mask = y_test != 0
-        mape = np.mean(np.abs(y_test - y_pred) / cap) * 100
-        classic_mape = np.mean(
-            np.abs((y_test[mask] - y_pred[mask]) / y_test[mask])
-        ) * 100
-        rmse = np.sqrt(np.mean((y_test - y_pred) ** 2))
-        mae  = np.mean(np.abs(y_test - y_pred))
-
-        mape_list.append(mape)
-        classic_mape_list.append(classic_mape)
-        rmse_list.append(rmse)
-        mae_list.append(mae)
-
-        y_test_all.extend(y_test)
-        y_pred_all.extend(y_pred)
-        dates_all.extend(dates_pred)
-
-    assert len(y_test_all) == len(y_pred_all) == len(dates_all), (
-        f"Tamanhos diferentes: "
-        f"y_test={len(y_test_all)}, "
-        f"y_pred={len(y_pred_all)}, "
-        f"dates={len(dates_all)}"
-    )
-
-    print("\n===== CV RESULTS =====")
-    print("Model:", method.__name__)
-    print("Classic MAPE:", np.mean(classic_mape_list))
-    print("MAPE:", np.mean(mape_list))
-    print("RMSE:", np.mean(rmse_list))
-    print("MAE :", np.mean(mae_list))
-
-    np.savetxt(f'y_test_cv.txt',
-           np.asarray(y_test_all).ravel(),
-           fmt='%.6f')
-
-    np.savetxt(f'y_pred_{method.__name__}_cv.txt',
-            np.asarray(y_pred_all).ravel(),
-            fmt='%.6f')
-
-    np.savetxt('dates_cv.txt',
-            np.asarray(dates_all).astype(str),
-            fmt='%s')
-
-    return {
-        "model": method.__name__,
-        "mape": np.mean(mape_list),
-        "classic_map": np.mean(classic_mape_list),
-        "rmse": np.mean(rmse_list),
-        "mae": np.mean(mae_list),
-        "y_test": np.array(y_test_all),
-        "y_pred": np.array(y_pred_all),
-        "dates": np.array(dates_all)
-    }
-
-
 ##Proposed Method Hybrid CEEMDAN-EWT LSTM
 def proposed_method(datasets, look_back, data_partition, cap, save=True):
 
@@ -969,10 +944,6 @@ def proposed_method(datasets, look_back, data_partition, cap, save=True):
     pred_train=[]
     train_ori=[]
 
-    batch_size=64
-    lr=0.001
-    optimizer='Adam'
-
     for col in new_ceemdan:
 
         datasetss2 = new_ceemdan[col].to_numpy(dtype=np.float32).reshape(-1, 1)
@@ -983,15 +954,6 @@ def proposed_method(datasets, look_back, data_partition, cap, save=True):
 
         trainX, trainY = create_dataset(train, look_back)
         testX, testY = create_dataset(test, look_back)
-
-        # Verifica se existem amostras suficientes
-        if len(trainX) == 0 or len(testX) == 0:
-            raise ValueError(
-                "Fold sem amostras suficientes: "
-                "trainX={}, testX={}, look_back={}".format(
-                    len(trainX), len(testX), look_back
-                )
-            )
 
         # Preparação dos dados
         trainX = np.asarray(trainX, dtype=np.float32)
@@ -1021,31 +983,11 @@ def proposed_method(datasets, look_back, data_partition, cap, save=True):
         y = np.ascontiguousarray(y.reshape(-1), dtype=np.float32)
         y1 = np.ascontiguousarray(y1.reshape(-1), dtype=np.float32)
 
-        # Diagnóstico antes do treinamento
-        print(
-            "DEBUG shapes:",
-            "trainX =", trainX.shape,
-            "y =", y.shape,
-            "testX =", testX.shape,
-            "y1 =", y1.shape,
-            flush=True
-        )
-
-        if not (
-            np.isfinite(trainX).all()
-            and np.isfinite(testX).all()
-            and np.isfinite(y).all()
-            and np.isfinite(y1).all()
-        ):
-            raise ValueError("NaN ou infinito encontrado nos dados de treinamento.")
-
         K.clear_session()
         gc.collect()
 
         np.random.seed(1234)
         tf.random.set_seed(1234)
-
-        neuron = 128
 
         model = Sequential()
         model.add(
@@ -1056,14 +998,13 @@ def proposed_method(datasets, look_back, data_partition, cap, save=True):
         )
         model.add(Dense(1))
 
-        optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
         model.compile(loss="mse", optimizer=optimizer, run_eagerly=True)
 
         model.fit(
             trainX,
             y,
             epochs=epochs,
-            batch_size=64,
+            batch_size=batch_size,
             verbose=0
         )
 
@@ -1098,7 +1039,6 @@ def proposed_method(datasets, look_back, data_partition, cap, save=True):
     a=result_pred_test.sum(axis = 0, skipna = True) 
     b=result_pred_train.sum(axis = 0, skipna = True)
 
-
     train_size = int(len(datasets) * data_partition)
     test_size = len(datasets) - train_size
     train, test = datasets[0:train_size], datasets[train_size:len(datasets)]
@@ -1129,7 +1069,6 @@ def proposed_method(datasets, look_back, data_partition, cap, save=True):
 
     y_test= sc_y.inverse_transform (y1)
     y_train= sc_y.inverse_transform (y)
-
 
     a= pd.DataFrame(a)    
     y_test= pd.DataFrame(y_test)    
@@ -1204,8 +1143,6 @@ def proposed_method(datasets, look_back, data_partition, cap, save=True):
 #     # =========================
 #     pred_test = []
 
-#     batch_size = 64
-
 #     for col in new_features:
 
 #         # sempre 2D
@@ -1244,8 +1181,6 @@ def proposed_method(datasets, look_back, data_partition, cap, save=True):
 #         model = Sequential()
 #         model.add(LSTM(128, input_shape=(trainX.shape[1], 1)))
 #         model.add(Dense(1))
-
-#         model.compile(loss='mse', optimizer=tf.keras.optimizers.Adam(0.001))
 
 #         model.fit(trainX, y_train, epochs=epochs, batch_size=batch_size, verbose=0)
 
@@ -1398,14 +1333,13 @@ def proposed_method_hilbert_transform(datasets, look_back, data_partition, cap):
 
     model = Sequential()
     model.add(LSTM(128, input_shape=(look_back, X_train.shape[2])))
-    model.add(Dense(64, activation='relu'))
+    model.add(Dense(activation='relu'))
     model.add(Dense(1))
 
-    model.compile(loss='mse', optimizer=tf.keras.optimizers.Adam(0.001))
 
     model.fit(X_train, y_train,
               epochs=epochs,
-              batch_size=32,
+              batch_size=batch_size,
               verbose=1)
 
     # =========================
@@ -1578,10 +1512,6 @@ def proposed_method_hilbert_transform_EMD_library(
     pred_train = []
     train_ori = []
 
-    batch_size = 64
-    learning_rate = 0.001
-    neuron = 128
-
     # ============================================================
     # 7. Uma LSTM para cada componente
     # ============================================================
@@ -1702,10 +1632,6 @@ def proposed_method_hilbert_transform_EMD_library(
 
         model.add(
             Dense(1)
-        )
-
-        optimizer = tf.keras.optimizers.Adam(
-            learning_rate=learning_rate
         )
 
         model.compile(
@@ -2037,11 +1963,7 @@ def proposed_method_hilbert_transform_EMD_library(
 #     test_ori=[]
 #     pred_train=[]
 #     train_ori=[]
-
-#     batch_size=64
-#     lr=0.001
-#     optimizer='Adam'
-
+#
 #     for col in new_ceemdan:
 
 #         datasetss2=pd.DataFrame(new_ceemdan[col])
@@ -2075,12 +1997,10 @@ def proposed_method_hilbert_transform_EMD_library(
 #         # - input_shape= (qtd. registros/janela temporal, características (1 neste caso)).
 #         # - Camada Sequencial = 128 neurônios. ([xᵢ,t-5] → [xᵢ,t-4] → [xᵢ,t-3] → [xᵢ,t-2] → [xᵢ,t-1] → [xᵢ,t] - 128 Unidades)
 #         # - Camada Densa = 1 neurônio. Previsao. Input: ht (último estado oculto) pertencente a R128. y^​=w'hT​+b. output_shape=(qtd. registros, 1).
-#         neuron=128
 #         model = Sequential()
 #         model.add(LSTM(units = neuron,input_shape=(trainX.shape[1], trainX.shape[2])))
 #         model.add(Dense(64, activation='relu'))
 #         model.add(Dense(1))
-#         optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
 #         model.compile(loss='mse',optimizer=optimizer)
 
 #         model.fit(trainX, y, epochs = epochs, batch_size = batch_size,verbose=0)
@@ -2223,11 +2143,7 @@ def proposed_method_hilbert_transform_EMD_library(
 #     test_ori=[]
 #     pred_train=[]
 #     train_ori=[]
-
-#     batch_size=64
-#     lr=0.001
-#     optimizer='Adam'
-
+#
 #     for col in new_ceemdan:
 
 #         datasetss2=pd.DataFrame(new_ceemdan[col])
@@ -2261,12 +2177,10 @@ def proposed_method_hilbert_transform_EMD_library(
 #         # - input_shape= (qtd. registros/janela temporal, características (1 neste caso)).
 #         # - Camada Sequencial = 128 neurônios. ([xᵢ,t-5] → [xᵢ,t-4] → [xᵢ,t-3] → [xᵢ,t-2] → [xᵢ,t-1] → [xᵢ,t] - 128 Unidades)
 #         # - Camada Densa = 1 neurônio. Previsao. Input: ht (último estado oculto) pertencente a R128. y^​=w'hT​+b. output_shape=(qtd. registros, 1).
-#         neuron=128
 #         model = Sequential()
 #         model.add(LSTM(units = neuron,input_shape=(trainX.shape[1], trainX.shape[2])))
 #         model.add(Dropout(0.2))
 #         model.add(Dense(1))
-#         optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
 #         model.compile(loss='mse',optimizer=optimizer)
 
 #         model.fit(trainX, y, epochs = epochs, batch_size = batch_size,verbose=0)
@@ -2414,10 +2328,6 @@ def proposed_method_stable_and_dropout_layer(datasets, look_back, data_partition
     pred_train=[]
     train_ori=[]
 
-    batch_size=64
-    lr=0.001
-    optimizer='Adam'
-
     for col in new_ceemdan:
 
         datasetss2=pd.DataFrame(new_ceemdan[col])
@@ -2451,13 +2361,11 @@ def proposed_method_stable_and_dropout_layer(datasets, look_back, data_partition
         # - input_shape= (qtd. registros/janela temporal, características (1 neste caso)).
         # - Camada Sequencial = 128 neurônios. ([xᵢ,t-5] → [xᵢ,t-4] → [xᵢ,t-3] → [xᵢ,t-2] → [xᵢ,t-1] → [xᵢ,t] - 128 Unidades)
         # - Camada Densa = 1 neurônio. Previsao. Input: ht (último estado oculto) pertencente a R128. y^​=w'hT​+b. output_shape=(qtd. registros, 1).
-        neuron=128
         model = Sequential()
         model.add(LSTM(units = neuron,input_shape=(trainX.shape[1], trainX.shape[2])))
         model.add(Dense(64, activation='relu'))
         model.add(Dropout(0.2))
         model.add(Dense(1))
-        optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
         model.compile(loss='mse',optimizer=optimizer)
 
         model.fit(trainX, y, epochs = epochs, batch_size = batch_size,verbose=0)
@@ -2493,13 +2401,9 @@ def proposed_method_stable_and_dropout_layer(datasets, look_back, data_partition
     a=result_pred_test.sum(axis = 0, skipna = True) 
     b=result_pred_train.sum(axis = 0, skipna = True) 
 
-
-    dataframe=pd.DataFrame(dfs)
-    dataset=dataframe.values
-
-    train_size = int(len(dataset) * data_partition)
-    test_size = len(dataset) - train_size
-    train, test = dataset[0:train_size], dataset[train_size:len(dataset)]
+    train_size = int(len(datasets) * data_partition)
+    test_size = len(datasets) - train_size
+    train, test = datasets[0:train_size], datasets[train_size:len(datasets)]
 
     trainX, trainY = create_dataset(train, look_back)
     testX, testY = create_dataset(test, look_back)
@@ -2528,8 +2432,8 @@ def proposed_method_stable_and_dropout_layer(datasets, look_back, data_partition
     y_test= sc_y.inverse_transform (y1)
     y_train= sc_y.inverse_transform (y)
 
-    dates = data1['Month'].iloc[-len(y_test):]
-    dates = pd.to_datetime(dates)
+    # dates = data1['Month'].iloc[-len(y_test):]
+    # dates = pd.to_datetime(dates)
 
     a= pd.DataFrame(a)    
     y_test= pd.DataFrame(y_test)    
@@ -2554,12 +2458,12 @@ def proposed_method_stable_and_dropout_layer(datasets, look_back, data_partition
     np.savetxt(os.path.join(BASE_DIR, 'y_test.txt'), y_test.values.flatten(), fmt='%.6f')
     np.savetxt(os.path.join(BASE_DIR, 'y_pred_proposed_method_stable_and_dropout_layer.txt'), a.values.flatten(), fmt='%.6f')
 
-    dates = data1['Month'].iloc[-len(y_test):]
-    dates = pd.to_datetime(dates)
+    # dates = data1['Month'].iloc[-len(y_test):]
+    # dates = pd.to_datetime(dates)
 
-    np.savetxt(os.path.join(BASE_DIR, 'dates.txt'), dates.astype(str), fmt='%s')
+    # np.savetxt(os.path.join(BASE_DIR, 'dates.txt'), dates.astype(str), fmt='%s')
 
-    return y_test.values.flatten(), a.values.flatten(), dates.astype(str).values
+    return y_test.values.flatten(), a.values.flatten()
 
 
 
@@ -2604,10 +2508,6 @@ def proposed_method_with_bilstm(datasets, look_back, data_partition, cap):
     pred_train=[]
     train_ori=[]
 
-    batch_size=64
-    lr=0.001
-    optimizer='Adam'
-
     for col in new_ceemdan:
 
         datasetss2=pd.DataFrame(new_ceemdan[col])
@@ -2642,14 +2542,12 @@ def proposed_method_with_bilstm(datasets, look_back, data_partition, cap):
         # - Camada Sequencial = 128 neurônios. ([xᵢ,t-5] → [xᵢ,t-4] → [xᵢ,t-3] → [xᵢ,t-2] → [xᵢ,t-1] → [xᵢ,t] - 128 Unidades)
         # - Camada Densa = 1 neurônio. Previsao. Input: ht (último estado oculto) pertencente a R128. y^​=w'hT​+b. output_shape=(qtd. registros, 1).
         
-        neuron = 128
         model = Sequential()
         model.add(Bidirectional(
             LSTM(units=neuron),
             input_shape=(trainX.shape[1], trainX.shape[2])
         ))
         model.add(Dense(1))
-        optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
         model.compile(loss='mse', optimizer=optimizer)
 
         model.fit(trainX, y, epochs = epochs, batch_size = batch_size,verbose=0)
@@ -2684,12 +2582,9 @@ def proposed_method_with_bilstm(datasets, look_back, data_partition, cap):
     a=result_pred_test.sum(axis = 0, skipna = True) 
     b=result_pred_train.sum(axis = 0, skipna = True) 
 
-    dataframe=pd.DataFrame(dfs)
-    dataset=dataframe.values
-
-    train_size = int(len(dataset) * data_partition)
-    test_size = len(dataset) - train_size
-    train, test = dataset[0:train_size], dataset[train_size:len(dataset)]
+    train_size = int(len(datasets) * data_partition)
+    test_size = len(datasets) - train_size
+    train, test = datasets[0:train_size], datasets[train_size:len(datasets)]
 
     trainX, trainY = create_dataset(train, look_back)
     testX, testY = create_dataset(test, look_back)
@@ -2721,7 +2616,6 @@ def proposed_method_with_bilstm(datasets, look_back, data_partition, cap):
     a= pd.DataFrame(a)    
     y_test= pd.DataFrame(y_test)    
 
-
     #summarize the fit of the model
     mask = y_test != 0
     mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
@@ -2741,12 +2635,12 @@ def proposed_method_with_bilstm(datasets, look_back, data_partition, cap):
     np.savetxt(os.path.join(BASE_DIR, 'y_test.txt'), y_test.values.flatten(), fmt='%.6f')
     np.savetxt(os.path.join(BASE_DIR, 'y_pred_BiLSTM.txt'), a.values.flatten(), fmt='%.6f')
 
-    dates = data1['Month'].iloc[-len(y_test):]
-    dates = pd.to_datetime(dates)
+    # dates = data1['Month'].iloc[-len(y_test):]
+    # dates = pd.to_datetime(dates)
 
-    np.savetxt(os.path.join(BASE_DIR, 'dates.txt'), dates.astype(str), fmt='%s')
+    # np.savetxt(os.path.join(BASE_DIR, 'dates.txt'), dates.astype(str), fmt='%s')
 
-    return y_test.values.flatten(), a.values.flatten(), dates.astype(str).values
+    return y_test.values.flatten(), a.values.flatten()
 
 
 # CEEMDAN-EWT GRU
@@ -2790,10 +2684,6 @@ def proposed_method_with_gru(datasets, look_back, data_partition, cap):
     pred_train=[]
     train_ori=[]
 
-    batch_size=64
-    lr=0.001
-    optimizer='Adam'
-
     for col in new_ceemdan:
 
         datasetss2=pd.DataFrame(new_ceemdan[col])
@@ -2803,13 +2693,9 @@ def proposed_method_with_gru(datasets, look_back, data_partition, cap):
         train_size = int(len(datasets) * data_partition)
         test_size = len(datasets) - train_size
         train, test = datasets[0:train_size], datasets[train_size:len(datasets)]
-        train_dates, test_dates = dates[:train_size], dates[train_size:]
 
         trainX, trainY = create_dataset(train, look_back)
         testX, testY = create_dataset(test, look_back)
-
-        train_dates_aligned = train_dates[look_back+1:]
-        test_dates_aligned = test_dates[look_back+1:]
 
         X_train=pd.DataFrame(trainX)
         Y_train=pd.DataFrame(trainY)
@@ -2834,11 +2720,9 @@ def proposed_method_with_gru(datasets, look_back, data_partition, cap):
         # - input_shape= (qtd. registros/janela temporal, características (1 neste caso)).
         # - Camada Sequencial = 128 neurônios. ([xᵢ,t-5] → [xᵢ,t-4] → [xᵢ,t-3] → [xᵢ,t-2] → [xᵢ,t-1] → [xᵢ,t] - 128 Unidades)
         # - Camada Densa = 1 neurônio. Previsao. Input: ht (último estado oculto) pertencente a R128. y^​=w'hT​+b. output_shape=(qtd. registros, 1).
-        neuron=128
         model = Sequential()
         model.add(GRU(units = neuron,input_shape=(trainX.shape[1], trainX.shape[2])))
         model.add(Dense(1))
-        optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
         model.compile(loss='mse',optimizer=optimizer)
 
         model.fit(trainX, y, epochs = epochs, batch_size = batch_size,verbose=0)
@@ -2871,12 +2755,9 @@ def proposed_method_with_gru(datasets, look_back, data_partition, cap):
     a=result_pred_test.sum(axis = 0, skipna = True) 
     b=result_pred_train.sum(axis = 0, skipna = True) 
 
-    dataframe=pd.DataFrame(dfs)
-    dataset=dataframe.values
-
-    train_size = int(len(dataset) * data_partition)
-    test_size = len(dataset) - train_size
-    train, test = dataset[0:train_size], dataset[train_size:len(dataset)]
+    train_size = int(len(datasets) * data_partition)
+    test_size = len(datasets) - train_size
+    train, test = datasets[0:train_size], datasets[train_size:len(datasets)]
 
     trainX, trainY = create_dataset(train, look_back)
     testX, testY = create_dataset(test, look_back)
@@ -2928,11 +2809,11 @@ def proposed_method_with_gru(datasets, look_back, data_partition, cap):
     np.savetxt(os.path.join(BASE_DIR, 'y_test.txt'), y_test.values.flatten(), fmt='%.6f')
     np.savetxt(os.path.join(BASE_DIR, 'y_pred_gru.txt'), a.values.flatten(), fmt='%.6f')
 
-    dates = pd.to_datetime(test_dates_aligned)
+    # dates = pd.to_datetime(test_dates_aligned)
 
-    np.savetxt(os.path.join(BASE_DIR, 'dates.txt'), dates.astype(str), fmt='%s')
+    # np.savetxt(os.path.join(BASE_DIR, 'dates.txt'), dates.astype(str), fmt='%s')
 
-    return y_test.values.flatten(), a.values.flatten(), dates.astype(str).values
+    return y_test.values.flatten(), a.values.flatten()
 
 ## CEEMDAN-EWT BiGRU
 
@@ -2976,10 +2857,6 @@ def proposed_method_with_bigru(datasets, look_back, data_partition, cap):
     pred_train=[]
     train_ori=[]
 
-    batch_size=64
-    lr=0.001
-    optimizer='Adam'
-
     for col in new_ceemdan:
 
         datasetss2=pd.DataFrame(new_ceemdan[col])
@@ -3014,14 +2891,12 @@ def proposed_method_with_bigru(datasets, look_back, data_partition, cap):
         # - Camada Sequencial = 128 neurônios. ([xᵢ,t-5] → [xᵢ,t-4] → [xᵢ,t-3] → [xᵢ,t-2] → [xᵢ,t-1] → [xᵢ,t] - 128 Unidades)
         # - Camada Densa = 1 neurônio. Previsao. Input: ht (último estado oculto) pertencente a R128. y^​=w'hT​+b. output_shape=(qtd. registros, 1).
         
-        neuron = 128
         model = Sequential()
         model.add(Bidirectional(
             GRU(units=neuron),
             input_shape=(trainX.shape[1], trainX.shape[2])
         ))
         model.add(Dense(1))
-        optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
         model.compile(loss='mse', optimizer=optimizer)
 
         model.fit(trainX, y, epochs = epochs, batch_size = batch_size,verbose=0)
@@ -3058,12 +2933,9 @@ def proposed_method_with_bigru(datasets, look_back, data_partition, cap):
     b=result_pred_train.sum(axis = 0, skipna = True) 
 
 
-    dataframe=pd.DataFrame(dfs)
-    dataset=dataframe.values
-
-    train_size = int(len(dataset) * data_partition)
-    test_size = len(dataset) - train_size
-    train, test = dataset[0:train_size], dataset[train_size:len(dataset)]
+    train_size = int(len(datasets) * data_partition)
+    test_size = len(datasets) - train_size
+    train, test = datasets[0:train_size], datasets[train_size:len(datasets)]
 
     trainX, trainY = create_dataset(train, look_back)
     testX, testY = create_dataset(test, look_back)
@@ -3113,12 +2985,12 @@ def proposed_method_with_bigru(datasets, look_back, data_partition, cap):
     np.savetxt(os.path.join(BASE_DIR, 'y_test.txt'), y_test.values.flatten(), fmt='%.6f')
     np.savetxt(os.path.join(BASE_DIR, 'y_pred_BiGRU.txt'), a.values.flatten(), fmt='%.6f')
 
-    dates = data1['Month'].iloc[-len(y_test):]
-    dates = pd.to_datetime(dates)
+    # dates = data1['Month'].iloc[-len(y_test):]
+    # dates = pd.to_datetime(dates)
 
-    np.savetxt(os.path.join(BASE_DIR, 'dates.txt'), dates.astype(str), fmt='%s')
+    # np.savetxt(os.path.join(BASE_DIR, 'dates.txt'), dates.astype(str), fmt='%s')
 
-    return y_test.values.flatten(), a.values.flatten(), dates.astype(str).values
+    return y_test.values.flatten(), a.values.flatten()
 
 
 # CEEMDAN-EWT Transformer with Keras
@@ -3243,10 +3115,6 @@ def proposed_method_with_transformer_keras(datasets, look_back, data_partition, 
     pred_train=[]
     train_ori=[]
 
-    batch_size=64
-    lr=0.001
-    optimizer='Adam'
-
     # ===============================
     # 4. Loop por componente
     # ===============================
@@ -3304,14 +3172,14 @@ def proposed_method_with_transformer_keras(datasets, look_back, data_partition, 
         model = tf.keras.Model(inputs, outputs)
 
         model.compile(
-            optimizer=tf.keras.optimizers.Adam(1e-4),
+            optimizer=optimizer,
             loss="mse"
         )
 
         model.fit(
             trainX, y_train,
             epochs=epochs,
-            batch_size=64,
+            batch_size=batch_size,
             verbose=0
         )
 
@@ -3332,9 +3200,9 @@ def proposed_method_with_transformer_keras(datasets, look_back, data_partition, 
     # ===============================
     # 8. Métricas
     # ===============================
-    dataset = dfs.values.reshape(-1, 1)
-    train_size = int(len(dataset) * data_partition)
-    test = dataset[train_size:]
+    train_size = int(len(datasets) * data_partition)
+    test_size = len(datasets) - train_size
+    train, test = datasets[0:train_size], datasets[train_size:len(datasets)]
 
     _, testY = create_dataset(test, look_back)
     y_test = testY.reshape(-1, 1)
@@ -3351,12 +3219,12 @@ def proposed_method_with_transformer_keras(datasets, look_back, data_partition, 
     np.savetxt(os.path.join(BASE_DIR, 'y_test.txt'), y_test.flatten(), fmt='%.6f')
     np.savetxt(os.path.join(BASE_DIR, 'y_pred_transformer.txt'), a.flatten(), fmt='%.6f')
 
-    dates = data1['Month'].iloc[-len(y_test):]
-    dates = pd.to_datetime(dates)
+    # dates = data1['Month'].iloc[-len(y_test):]
+    # dates = pd.to_datetime(dates)
 
-    np.savetxt(os.path.join(BASE_DIR, 'dates.txt'), dates.astype(str), fmt='%s')
+    # np.savetxt(os.path.join(BASE_DIR, 'dates.txt'), dates.astype(str), fmt='%s')
 
-    return y_test.flatten(), a.flatten(), dates.astype(str).values
+    return y_test.flatten(), a.flatten()
 
 
 # CEEMDAN-EWT PatchTransformer with TensorFlow
@@ -3400,10 +3268,6 @@ def proposed_method_with_patchtransformer_tf(datasets, look_back, data_partition
     test_ori=[]
     pred_train=[]
     train_ori=[]
-
-    batch_size=64
-    lr=0.001
-    optimizer='Adam'
 
     for col in new_ceemdan:
 
@@ -3526,7 +3390,6 @@ def proposed_method_with_patchtransformer_tf(datasets, look_back, data_partition
             pred_len=1
         ).to(device)
 
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
         criterion = nn.MSELoss()
 
         for epoch in range(epochs):
@@ -3604,17 +3467,17 @@ def proposed_method_with_patchtransformer_tf(datasets, look_back, data_partition
     np.savetxt(os.path.join(BASE_DIR, 'y_test.txt'), y_test.values.flatten(), fmt='%.6f')
     np.savetxt(os.path.join(BASE_DIR, 'y_pred_patch_transformer.txt'), a.values.flatten(), fmt='%.6f')
 
-    dates = data1['Month'].iloc[-len(y_test):]
-    dates = pd.to_datetime(dates)
+    # dates = data1['Month'].iloc[-len(y_test):]
+    # dates = pd.to_datetime(dates)
 
-    np.savetxt(os.path.join(BASE_DIR, 'dates.txt'), dates.astype(str), fmt='%s')
+    # np.savetxt(os.path.join(BASE_DIR, 'dates.txt'), dates.astype(str), fmt='%s')
 
-    return y_test.values.flatten(), a.values.flatten(), dates.astype(str).values
+    return y_test.values.flatten(), a.values.flatten()
 
 # Hybrid CEEMDAN-EWT KAN
 
 def proposed_method_with_kan(
-    new_data, i, look_back, data_partition, cap,
+    datasets, look_back, data_partition, cap,
     epochs=epochs, batch_size=32, Q=4
 ):
     import torch
@@ -3686,48 +3549,44 @@ def proposed_method_with_kan(
             return y
 
 
-    # -----------------------------
-    # Seleção dos dados
-    # -----------------------------
-    x = i
-    data1 = new_data.loc[new_data['Month'].isin(x)]
-    data1 = data1.reset_index(drop=True).dropna()
+        # Prepara o sinal para o CEEMDAN
+    s = np.ascontiguousarray(
+        np.asarray(datasets, dtype=np.float64).reshape(-1)
+    )
 
-    dfs = data1['P_avg']
-    s = dfs.values
+    emd = CEEMDAN(
+        trials=10,
+        epsilon=0.05,
+        parallel=False
+    )
 
-    s = np.asarray(dfs, dtype=np.float64).flatten()
-
-    # -----------------------------
-    # CEEMDAN
-    # -----------------------------
-    emd = CEEMDAN(epsilon=0.05)
     emd.noise_seed(12345)
-    IMFs = emd(s)
 
-    ceemdan1 = pd.DataFrame(IMFs).T
+    IMFs = emd.ceemdan(s)
 
-    # -----------------------------
-    # EWT no IMF1
-    # -----------------------------
-    imf1 = ceemdan1.iloc[:, 0]
-    ewt, _, _ = ewtpy.EWT1D(imf1, N=3)
+    print("Shape IMFs:", IMFs.shape, flush=True)
 
-    df_ewt = pd.DataFrame(ewt)
-    df_ewt.drop(df_ewt.columns[2], axis=1, inplace=True)
-    denoised = df_ewt.sum(axis=1)
+    full_imf = pd.DataFrame(IMFs)
+    print("Quantidade IMFs", full_imf.shape[0], flush=True)
 
-    ceemdan_without_imf1 = ceemdan1.iloc[:, 1:]
-    new_ceemdan = pd.concat([denoised, ceemdan_without_imf1], axis=1)
+    ceemdan1=full_imf.T
+    
+    imf1=ceemdan1.iloc[:,0]
 
-    # -----------------------------
-    # Containers
-    # -----------------------------
-    pred_test = []
+    ewt,  mfb ,boundaries = ewtpy.EWT1D(imf1, N =3)
 
-    # -----------------------------
-    # Loop por IMF
-    # -----------------------------
+    df_ewt=pd.DataFrame(ewt)
+
+    df_ewt.drop(df_ewt.columns[2],axis=1,inplace=True)
+    denoised=df_ewt.sum(axis = 1, skipna = True) 
+    ceemdan_without_imf1=ceemdan1.iloc[:,1:]
+    new_ceemdan=pd.concat([denoised,ceemdan_without_imf1],axis=1)    
+    
+    pred_test=[]
+    test_ori=[]
+    pred_train=[]
+    train_ori=[]
+
     for col in new_ceemdan:
 
         series = new_ceemdan[col].values.reshape(-1, 1)
@@ -3848,15 +3707,6 @@ def proposed_method_with_kan(
     a = result_pred_test.sum(axis=0).values.reshape(-1, 1)
 
     # -----------------------------
-    # Ground truth
-    # -----------------------------
-    dataset = dfs.values.reshape(-1, 1)
-    _, testY = create_dataset(dataset, look_back)
-
-    split = int(len(testY) * data_partition)
-    y_test = testY[split:].reshape(-1, 1)
-
-    # -----------------------------
     # Métricas
     # -----------------------------
     mape = np.mean(np.abs((y_test - a)) / cap) * 100
@@ -3871,16 +3721,16 @@ def proposed_method_with_kan(
     np.savetxt(os.path.join(BASE_DIR, 'y_test.txt'), y_test.values.flatten(), fmt='%.6f')
     np.savetxt(os.path.join(BASE_DIR, 'y_pred_kan.txt'), a.values.flatten(), fmt='%.6f')
 
-    dates = data1['Month'].iloc[-len(y_test):]
-    dates = pd.to_datetime(dates)
+    # dates = data1['Month'].iloc[-len(y_test):]
+    # dates = pd.to_datetime(dates)
 
-    np.savetxt(os.path.join(BASE_DIR, 'dates.txt'), dates.astype(str), fmt='%s')
+    # np.savetxt(os.path.join(BASE_DIR, 'dates.txt'), dates.astype(str), fmt='%s')
 
     return  y_test.values.flatten(), a.values.flatten(), dates.astype(str).values
 
 
 def proposed_method_with_deeponet(
-    new_data, i, look_back, data_partition, cap,
+    datasets, look_back, data_partition, cap,
     epochs=50, batch_size=32, hidden_dim=64
 ):
     import torch
@@ -3942,31 +3792,43 @@ def proposed_method_with_deeponet(
             y = self.fc_out(b * t)
             return y
 
-    # -----------------------------
-    # Seleção dos dados
-    # -----------------------------
-    data1 = new_data.loc[new_data['Month'].isin(i)].dropna().reset_index(drop=True)
-    dfs = data1['P_avg']
-    s = dfs.values
+    # Prepara o sinal para o CEEMDAN
+    s = np.ascontiguousarray(
+        np.asarray(datasets, dtype=np.float64).reshape(-1)
+    )
 
-    # -----------------------------
-    # CEEMDAN
-    # -----------------------------
-    emd = CEEMDAN(epsilon=0.05)
+    emd = CEEMDAN(
+        trials=10,
+        epsilon=0.05,
+        parallel=False
+    )
+
     emd.noise_seed(12345)
-    IMFs = emd(s)
-    ceemdan = pd.DataFrame(IMFs).T
 
-    # -----------------------------
-    # EWT no IMF1
-    # -----------------------------
-    imf1 = ceemdan.iloc[:, 0]
-    ewt, _, _ = ewtpy.EWT1D(imf1, N=3)
-    denoised = pd.DataFrame(ewt).iloc[:, :2].sum(axis=1)
+    IMFs = emd.ceemdan(s)
 
-    new_ceemdan = pd.concat([denoised, ceemdan.iloc[:, 1:]], axis=1)
+    print("Shape IMFs:", IMFs.shape, flush=True)
 
-    pred_test = []
+    full_imf = pd.DataFrame(IMFs)
+    print("Quantidade IMFs", full_imf.shape[0], flush=True)
+
+    ceemdan1=full_imf.T
+    
+    imf1=ceemdan1.iloc[:,0]
+
+    ewt,  mfb ,boundaries = ewtpy.EWT1D(imf1, N =3)
+
+    df_ewt=pd.DataFrame(ewt)
+
+    df_ewt.drop(df_ewt.columns[2],axis=1,inplace=True)
+    denoised=df_ewt.sum(axis = 1, skipna = True) 
+    ceemdan_without_imf1=ceemdan1.iloc[:,1:]
+    new_ceemdan=pd.concat([denoised,ceemdan_without_imf1],axis=1)    
+    
+    pred_test=[]
+    test_ori=[]
+    pred_train=[]
+    train_ori=[]
 
     # -----------------------------
     # Loop por IMF
@@ -4007,7 +3869,6 @@ def proposed_method_with_deeponet(
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model.to(device)
 
-        optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
         criterion = nn.MSELoss()
 
         # -----------------------------
@@ -4049,13 +3910,8 @@ def proposed_method_with_deeponet(
     # -----------------------------
     a = np.sum(np.array(pred_test), axis=0)
 
-    # Ground truth
-    dataset = dfs.values.reshape(-1, 1)
-    _, testY = create_dataset(dataset, look_back)
-    y_test = testY[int(len(testY)*data_partition):].reshape(-1, 1)
-
-    dates = data1['Month'].iloc[-len(y_test):]
-    dates = pd.to_datetime(dates)
+    # dates = data1['Month'].iloc[-len(y_test):]
+    # dates = pd.to_datetime(dates)
 
     # -----------------------------
     # Métricas
@@ -4068,11 +3924,11 @@ def proposed_method_with_deeponet(
     print("RMSE:", rmse)
     print("MAE:", mae)
 
-    return y_test.values.flatten(), a.values.flatten(), dates.astype(str).values
+    return y_test.values.flatten(), a.values.flatten()
 
 
 def proposed_method_with_lstm_deeponet(
-    new_data, i, look_back, data_partition, cap,
+    datasets, look_back, data_partition, cap,
     epochs=50, batch_size=32, hidden_dim=64
 ):
     import torch
@@ -4143,31 +3999,43 @@ def proposed_method_with_lstm_deeponet(
             y = torch.sum(b * t, dim=1, keepdim=True)
             return y
 
-    # ==========================================================
-    # Seleção dos dados
-    # ==========================================================
-    data1 = new_data.loc[new_data['Month'].isin(i)].dropna().reset_index(drop=True)
-    dfs = data1['P_avg']
-    s = dfs.values
+        # Prepara o sinal para o CEEMDAN
+    s = np.ascontiguousarray(
+        np.asarray(datasets, dtype=np.float64).reshape(-1)
+    )
 
-    # ==========================================================
-    # CEEMDAN
-    # ==========================================================
-    emd = CEEMDAN(epsilon=0.05)
+    emd = CEEMDAN(
+        trials=10,
+        epsilon=0.05,
+        parallel=False
+    )
+
     emd.noise_seed(12345)
-    IMFs = emd(s)
-    ceemdan = pd.DataFrame(IMFs).T
 
-    # ==========================================================
-    # EWT no IMF1
-    # ==========================================================
-    imf1 = ceemdan.iloc[:, 0]
-    ewt, _, _ = ewtpy.EWT1D(imf1, N=3)
-    denoised = pd.DataFrame(ewt).iloc[:, :2].sum(axis=1)
+    IMFs = emd.ceemdan(s)
 
-    new_ceemdan = pd.concat([denoised, ceemdan.iloc[:, 1:]], axis=1)
+    print("Shape IMFs:", IMFs.shape, flush=True)
 
-    pred_test = []
+    full_imf = pd.DataFrame(IMFs)
+    print("Quantidade IMFs", full_imf.shape[0], flush=True)
+
+    ceemdan1=full_imf.T
+    
+    imf1=ceemdan1.iloc[:,0]
+
+    ewt,  mfb ,boundaries = ewtpy.EWT1D(imf1, N =3)
+
+    df_ewt=pd.DataFrame(ewt)
+
+    df_ewt.drop(df_ewt.columns[2],axis=1,inplace=True)
+    denoised=df_ewt.sum(axis = 1, skipna = True) 
+    ceemdan_without_imf1=ceemdan1.iloc[:,1:]
+    new_ceemdan=pd.concat([denoised,ceemdan_without_imf1],axis=1)    
+    
+    pred_test=[]
+    test_ori=[]
+    pred_train=[]
+    train_ori=[]
 
     # ==========================================================
     # Loop por IMF
@@ -4209,7 +4077,6 @@ def proposed_method_with_lstm_deeponet(
 
         model = LSTMDeepONet(trunk_dim=3, hidden_dim=hidden_dim).to(device)
 
-        optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
         criterion = nn.MSELoss()
 
         # ==========================================================
@@ -4251,13 +4118,8 @@ def proposed_method_with_lstm_deeponet(
     # ==========================================================
     a = np.sum(np.array(pred_test), axis=0)
     
-    dates = data1['Month'].iloc[-len(y_test):]
-    dates = pd.to_datetime(dates)
-
-    # Ground truth
-    dataset = dfs.values.reshape(-1, 1)
-    _, testY = create_dataset(dataset, look_back)
-    y_test = testY[int(len(testY) * data_partition):].reshape(-1, 1)
+    # dates = data1['Month'].iloc[-len(y_test):]
+    # dates = pd.to_datetime(dates)
 
     # ==========================================================
     # Métricas
@@ -4270,7 +4132,7 @@ def proposed_method_with_lstm_deeponet(
     print("RMSE:", rmse)
     print("MAE:", mae)
 
-    return y_test.values.flatten(), a.values.flatten(), dates.astype(str).values
+    return y_test.values.flatten(), a.values.flatten()
 
 
 if __name__=='__main__':
