@@ -7,7 +7,7 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 os.environ["AUTOGRAPH_VERBOSITY"] = "0"
 os.environ["PYTHONHASHSEED"] = "1234"
 
-from PyEMD import CEEMDAN
+from PyEMD import EMD,,EEMD, CEEMDAN
 from scipy.signal import hilbert
 import ewtpy
 import math
@@ -26,10 +26,11 @@ tf.config.threading.set_intra_op_parallelism_threads(1)
 tf.config.threading.set_inter_op_parallelism_threads(1)
 
 from keras.models import Sequential
-from keras.layers import Dense
+from keras.layers import Dense, Dropout, GRU
 from keras.layers import LSTM
 from keras import backend as K
 from sklearn import metrics
+from sklearn.ensemble import RandomForestRegressor
 import numpy
 import pandas as pd
 import numpy as np
@@ -223,16 +224,9 @@ def rf_model(new_data,i,look_back,data_partition,cap):
     y1= sc_y.fit_transform(Y_test)
     y=y.ravel()
     y1=y1.ravel()  
-    import tensorflow as tf
-
-    import numpy
     
     numpy.random.seed(1234)
     tf.random.set_seed(1234)
-
-    
-    from sklearn.ensemble import RandomForestRegressor
-    
 
     grid = RandomForestRegressor()
     grid.fit(X,y)
@@ -312,10 +306,7 @@ def lstm_model(new_data,i,look_back,data_partition,cap):
     y1= sc_y.fit_transform(Y_test)
     y=y.ravel()
     y1=y1.ravel()  
-    import tensorflow as tf
-
     
-    import numpy
     numpy.random.seed(1234)
     tf.random.set_seed(1234)
 
@@ -325,16 +316,7 @@ def lstm_model(new_data,i,look_back,data_partition,cap):
     
     
     numpy.random.seed(1234)
-    import tensorflow as tf
     tf.random.set_seed(1234)
-    
-    
-    import os 
-    
-    from tensorflow.keras.models import Sequential
-    from tensorflow.keras.layers import Dense, Dropout, Activation
-    from tensorflow.keras.layers import LSTM
-
 
     neuron=128
     model = Sequential()
@@ -389,9 +371,6 @@ def emd_lstm(new_data,i,look_back,data_partition,cap):
     datas_wind=pd.DataFrame(datas)
     dfs=datas
     s = dfs.values
-
-    from PyEMD import EMD
-    import ewtpy
     
     emd = EMD()
 
@@ -432,23 +411,11 @@ def emd_lstm(new_data,i,look_back,data_partition,cap):
         y=y.ravel()
         y1=y1.ravel()  
 
-        import numpy
         trainX = numpy.reshape(X, (X.shape[0],X.shape[1],1))
         testX = numpy.reshape(X1, (X1.shape[0],X1.shape[1],1))
     
-        
-
         numpy.random.seed(1234)
-        import tensorflow as tf
         tf.random.set_seed(1234)
-
-    
-        import os 
-        
-        from tensorflow.keras.models import Sequential
-        from tensorflow.keras.layers import Dense, Dropout, Activation
-        from tensorflow.keras.layers import LSTM
-
 
         neuron=128
         model = Sequential()
@@ -456,7 +423,6 @@ def emd_lstm(new_data,i,look_back,data_partition,cap):
         model.add(Dense(1))
         optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
         model.compile(loss='mse',optimizer=optimizer)
-
 
         # Fitting the RNN to the Training set
         model.fit(trainX, y, epochs = epochs, batch_size = batch_size,verbose=0)
@@ -566,9 +532,6 @@ def eemd_lstm(new_data,i,look_back,data_partition,cap):
     datas_wind=pd.DataFrame(datas)
     dfs=datas
     s = dfs.values
-
-    from PyEMD import EEMD
-    import ewtpy
     
     emd = EEMD(noise_width=0.02)
     emd.noise_seed(12345)
@@ -613,23 +576,11 @@ def eemd_lstm(new_data,i,look_back,data_partition,cap):
         y=y.ravel()
         y1=y1.ravel()  
 
-        import numpy
         trainX = numpy.reshape(X, (X.shape[0],X.shape[1],1))
         testX = numpy.reshape(X1, (X1.shape[0],X1.shape[1],1))
-    
-        
 
         numpy.random.seed(1234)
-        import tensorflow as tf
         tf.random.set_seed(1234)
-
-    
-        import os 
-        
-        from tensorflow.keras.models import Sequential
-        from tensorflow.keras.layers import Dense, Dropout, Activation
-        from tensorflow.keras.layers import LSTM
-
 
         neuron=128
         model = Sequential()
@@ -637,7 +588,6 @@ def eemd_lstm(new_data,i,look_back,data_partition,cap):
         model.add(Dense(1))
         optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
         model.compile(loss='mse',optimizer=optimizer)
-
 
         # Fitting the RNN to the Training set
         model.fit(trainX, y, epochs = epochs, batch_size = batch_size,verbose=0)
@@ -647,7 +597,6 @@ def eemd_lstm(new_data,i,look_back,data_partition,cap):
         y_pred_test = model.predict(testX)
 
         # make predictions
-
         y_pred_test= numpy.array(y_pred_test).ravel()
         y_pred_test=pd.DataFrame(y_pred_test)
         y1=pd.DataFrame(y1)
@@ -661,7 +610,6 @@ def eemd_lstm(new_data,i,look_back,data_partition,cap):
         y_pred_test1= sc_y.inverse_transform (y_pred_test)
         y_pred_train1= sc_y.inverse_transform (y_pred_train)
 
-
         pred_test.append(y_pred_test1)
         test_ori.append(y_test)
         pred_train.append(y_pred_train1)
@@ -674,7 +622,6 @@ def eemd_lstm(new_data,i,look_back,data_partition,cap):
 
     a=result_pred_test.sum(axis = 0, skipna = True) 
     b=result_pred_train.sum(axis = 0, skipna = True) 
-
 
     dataframe=pd.DataFrame(dfs)
     dataset=dataframe.values
@@ -731,11 +678,7 @@ def eemd_lstm(new_data,i,look_back,data_partition,cap):
     print('MAE',mae)
 
 
-# In[26]:
-
-
 ##HYBRID CEEMDAN LSTM
-
 def ceemdan_lstm(new_data,i,look_back,data_partition,cap):
 
     x=i
@@ -747,8 +690,6 @@ def ceemdan_lstm(new_data,i,look_back,data_partition,cap):
     datas_wind=pd.DataFrame(datas)
     dfs=datas
     s = dfs.values
-
-    from PyEMD import CEEMDAN
     
     emd = CEEMDAN(epsilon=0.05)
     emd.noise_seed(12345)
@@ -793,23 +734,11 @@ def ceemdan_lstm(new_data,i,look_back,data_partition,cap):
         y=y.ravel()
         y1=y1.ravel()  
 
-        import numpy
         trainX = numpy.reshape(X, (X.shape[0],X.shape[1],1))
         testX = numpy.reshape(X1, (X1.shape[0],X1.shape[1],1))
-    
-        
 
         numpy.random.seed(1234)
-        import tensorflow as tf
         tf.random.set_seed(1234)
-
-    
-        import os 
-        
-        from tensorflow.keras.models import Sequential
-        from tensorflow.keras.layers import Dense, Dropout, Activation
-        from tensorflow.keras.layers import LSTM
-
 
         neuron=128
         model = Sequential()
@@ -1000,30 +929,12 @@ def run_cv(method, datasets, dates, look_back, cap, n_splits=3):
 
 
 ##Proposed Method Hybrid CEEMDAN-EWT LSTM
-def proposed_method(datasets,look_back,data_partition,cap, save=True):
+def proposed_method(datasets, look_back, data_partition, cap, save=True):
 
     # Prepara o sinal para o CEEMDAN
     s = np.ascontiguousarray(
         np.asarray(datasets, dtype=np.float64).reshape(-1)
     )
-
-    print("\nDEBUG CEEMDAN", flush=True)
-    print("Tamanho:", s.shape, flush=True)
-    print("Tipo:", s.dtype, flush=True)
-    print("Contíguo:", s.flags["C_CONTIGUOUS"], flush=True)
-    print("Todos finitos:", np.isfinite(s).all(), flush=True)
-
-    if not np.isfinite(s).all():
-        raise ValueError("O sinal contém NaN ou infinito antes do CEEMDAN.")
-
-    if len(s) < 3:
-        raise ValueError("Sinal muito curto para a decomposição CEEMDAN.")
-
-    print("Mínimo:", np.min(s), flush=True)
-    print("Máximo:", np.max(s), flush=True)
-    print("Valores únicos:", np.unique(s).size, flush=True)
-
-    print("DEBUG: iniciando CEEMDAN", flush=True)
 
     emd = CEEMDAN(
         trials=10,
@@ -1035,7 +946,6 @@ def proposed_method(datasets,look_back,data_partition,cap, save=True):
 
     IMFs = emd.ceemdan(s)
 
-    print("DEBUG: CEEMDAN concluído", flush=True)
     print("Shape IMFs:", IMFs.shape, flush=True)
 
     full_imf = pd.DataFrame(IMFs)
@@ -1129,10 +1039,6 @@ def proposed_method(datasets,look_back,data_partition,cap, save=True):
         ):
             raise ValueError("NaN ou infinito encontrado nos dados de treinamento.")
 
-        import gc
-        import tensorflow as tf
-        from tensorflow.keras import backend as K
-
         K.clear_session()
         gc.collect()
 
@@ -1217,7 +1123,6 @@ def proposed_method(datasets,look_back,data_partition,cap, save=True):
     testX = np.reshape(X1, (X1.shape[0], 1, X1.shape[1]))
 
     np.random.seed(1234)
-    import tensorflow as tf
 
     y1=pd.DataFrame(y1)
     y=pd.DataFrame(y)
@@ -1229,7 +1134,6 @@ def proposed_method(datasets,look_back,data_partition,cap, save=True):
     a= pd.DataFrame(a)    
     y_test= pd.DataFrame(y_test)    
 
-
     #summarize the fit of the model
     mask = y_test != 0
     mape=np.mean((np.abs(y_test-a))/cap)*100
@@ -1238,7 +1142,6 @@ def proposed_method(datasets,look_back,data_partition,cap, save=True):
     ) * 100
     rmse= sqrt(mean_squared_error(y_test,a))
     mae=metrics.mean_absolute_error(y_test,a)
-
     
     print('MAPE',mape)
     print('Classic MAPE', classic_mape)
@@ -1265,21 +1168,6 @@ def proposed_method(datasets,look_back,data_partition,cap, save=True):
 # of the Hilbert-Huang Transformer (HHT)
 
 # def proposed_method_hilbert_transform(new_data, i, look_back, data_partition, cap):
-
-#     import numpy as np
-#     import pandas as pd
-#     from math import sqrt
-#     from sklearn.preprocessing import StandardScaler
-#     from sklearn.metrics import mean_squared_error
-#     from sklearn import metrics
-#     from scipy.signal import hilbert
-#     from PyEMD import CEEMDAN
-#     import tensorflow as tf
-#     from tensorflow.keras.models import Sequential
-#     from tensorflow.keras.layers import Dense, LSTM
-#     from tensorflow.keras import backend as K
-#     import gc
-#     import os
 
 #     # =========================
 #     # 1. Data preparation
@@ -1422,28 +1310,23 @@ def proposed_method(datasets,look_back,data_partition,cap, save=True):
 #     return a, y_test
 
 
-def proposed_method_hilbert_transform(new_data, i, look_back, data_partition, cap):
+def proposed_method_hilbert_transform(datasets, look_back, data_partition, cap):
 
-    # =========================
-    # 1. Data
-    # =========================
-    data1 = new_data.loc[new_data['Month'].isin(i)]
-    data1 = data1.reset_index(drop=True).dropna()
+    # Prepara o sinal para o CEEMDAN
+    s = np.ascontiguousarray(
+        np.asarray(datasets, dtype=np.float64).reshape(-1)
+    )
 
-    y_series = data1['P_avg'].values.reshape(-1, 1)
+    emd = CEEMDAN(
+        trials=10,
+        epsilon=0.05,
+        parallel=False
+    )
 
-    # =========================
-    # 2. CEEMDAN
-    # =========================
-    ceemdan = CEEMDAN(epsilon=0.05)
-    ceemdan.noise_seed(12345)
+    emd.noise_seed(12345)
 
-    IMFs = ceemdan(y_series.flatten())
+    IMFs = emd.ceemdan(s)
     ceemdan_df = pd.DataFrame(IMFs).T
-
-    # Limitar IMFs (controle de custo)
-    # MAX_IMFS = 5
-    # ceemdan_df = ceemdan_df.iloc[:, :MAX_IMFS]
 
     imfs_array = ceemdan_df.values
 
@@ -1574,21 +1457,6 @@ def proposed_method_hilbert_transform_EMD_library(
     data_partition,
     cap
 ):
-
-    import os
-    import numpy as np
-    import pandas as pd
-    import tensorflow as tf
-    import emd
-    import ewtpy
-
-    from PyEMD import CEEMDAN
-    from sklearn.preprocessing import StandardScaler
-    from sklearn.metrics import mean_squared_error, mean_absolute_error
-    from math import sqrt
-
-    from tensorflow.keras.models import Sequential
-    from tensorflow.keras.layers import LSTM, Dense
 
     # ============================================================
     # 1. Seleção dos dados
@@ -2131,453 +1999,409 @@ def proposed_method_hilbert_transform_EMD_library(
 
 
 ##Proposed Method Hybrid CEEMDAN-EWT LSTM with Stable Layer
-def proposed_method_stable_layer(new_data,i,look_back,data_partition,cap):
+# def proposed_method_stable_layer(datasets, look_back, data_partition, cap):
+#     # Prepara o sinal para o CEEMDAN
+#     s = np.ascontiguousarray(
+#         np.asarray(datasets, dtype=np.float64).reshape(-1)
+#     )
 
-    x=i
-    data1=new_data.loc[new_data['Month'].isin(x)]
-    data1=data1.reset_index(drop=True)
-    data1=data1.dropna()
+#     emd = CEEMDAN(
+#         trials=10,
+#         epsilon=0.05,
+#         parallel=False
+#     )
+
+#     emd.noise_seed(12345)
+
+#     IMFs = emd.ceemdan(s)
+
+#     print("Shape IMFs:", IMFs.shape, flush=True)
+
+#     full_imf = pd.DataFrame(IMFs)
+#     print("Quantidade IMFs", full_imf.shape[0], flush=True)
+
+#     ceemdan1=full_imf.T
     
-    datas=data1['P_avg']
-    datas_wind=pd.DataFrame(datas)
-    dfs=datas
-    s = dfs.values
+#     imf1=ceemdan1.iloc[:,0]
 
-    from PyEMD import EMD,EEMD,CEEMDAN
-    import numpy
+#     ewt,  mfb ,boundaries = ewtpy.EWT1D(imf1, N =3)
 
-    emd = CEEMDAN(epsilon=0.05)
-    emd.noise_seed(12345)
+#     df_ewt=pd.DataFrame(ewt)
 
-    IMFs = emd(s)
-
-    full_imf=pd.DataFrame(IMFs)
-    ceemdan1=full_imf.T
+#     df_ewt.drop(df_ewt.columns[2],axis=1,inplace=True)
+#     denoised=df_ewt.sum(axis = 1, skipna = True) 
+#     ceemdan_without_imf1=ceemdan1.iloc[:,1:]
+#     new_ceemdan=pd.concat([denoised,ceemdan_without_imf1],axis=1)    
     
-    imf1=ceemdan1.iloc[:,0]
-    imf_dataps=numpy.array(imf1)
-    imf_datasetss= imf_dataps.reshape(-1,1)
-    imf_new_datasets=pd.DataFrame(imf_datasetss)
+#     pred_test=[]
+#     test_ori=[]
+#     pred_train=[]
+#     train_ori=[]
 
-    import ewtpy
+#     batch_size=64
+#     lr=0.001
+#     optimizer='Adam'
 
-    ewt,  mfb ,boundaries = ewtpy.EWT1D(imf1, N =3)
-    df_ewt=pd.DataFrame(ewt)
+#     for col in new_ceemdan:
 
-    df_ewt.drop(df_ewt.columns[2],axis=1,inplace=True)
-    denoised=df_ewt.sum(axis = 1, skipna = True) 
-    ceemdan_without_imf1=ceemdan1.iloc[:,1:]
-    new_ceemdan=pd.concat([denoised,ceemdan_without_imf1],axis=1)    
-    
+#         datasetss2=pd.DataFrame(new_ceemdan[col])
+#         datasets=datasetss2.values
+#         train_size = int(len(datasets) * data_partition)
+#         test_size = len(datasets) - train_size
+#         train, test = datasets[0:train_size], datasets[train_size:len(datasets)]
 
-    pred_test=[]
-    test_ori=[]
-    pred_train=[]
-    train_ori=[]
+#         trainX, trainY = create_dataset(train, look_back)
+#         testX, testY = create_dataset(test, look_back)
+#         X_train=pd.DataFrame(trainX)
+#         Y_train=pd.DataFrame(trainY)
+#         X_test=pd.DataFrame(testX)
+#         Y_test=pd.DataFrame(testY)
+#         sc_X = StandardScaler()
+#         sc_y = StandardScaler()
+#         X= sc_X.fit_transform(X_train)
+#         y= sc_y.fit_transform(Y_train)
+#         X1= sc_X.fit_transform(X_test)
+#         y1= sc_y.fit_transform(Y_test)
+#         y=y.ravel()
+#         y1=y1.ravel()  
 
-    batch_size=64
-    lr=0.001
-    optimizer='Adam'
+#         trainX = numpy.reshape(X, (X.shape[0], X.shape[1],1))
+#         testX = numpy.reshape(X1, (X1.shape[0], X1.shape[1],1))
 
-    for col in new_ceemdan:
+#         numpy.random.seed(1234)
+#         tf.random.set_seed(1234)
 
-        datasetss2=pd.DataFrame(new_ceemdan[col])
-        datasets=datasetss2.values
-        train_size = int(len(datasets) * data_partition)
-        test_size = len(datasets) - train_size
-        train, test = datasets[0:train_size], datasets[train_size:len(datasets)]
+#         # LSTM Archithecture Summary:
+#         # - input_shape= (qtd. registros/janela temporal, características (1 neste caso)).
+#         # - Camada Sequencial = 128 neurônios. ([xᵢ,t-5] → [xᵢ,t-4] → [xᵢ,t-3] → [xᵢ,t-2] → [xᵢ,t-1] → [xᵢ,t] - 128 Unidades)
+#         # - Camada Densa = 1 neurônio. Previsao. Input: ht (último estado oculto) pertencente a R128. y^​=w'hT​+b. output_shape=(qtd. registros, 1).
+#         neuron=128
+#         model = Sequential()
+#         model.add(LSTM(units = neuron,input_shape=(trainX.shape[1], trainX.shape[2])))
+#         model.add(Dense(64, activation='relu'))
+#         model.add(Dense(1))
+#         optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+#         model.compile(loss='mse',optimizer=optimizer)
 
-        trainX, trainY = create_dataset(train, look_back)
-        testX, testY = create_dataset(test, look_back)
-        X_train=pd.DataFrame(trainX)
-        Y_train=pd.DataFrame(trainY)
-        X_test=pd.DataFrame(testX)
-        Y_test=pd.DataFrame(testY)
-        sc_X = StandardScaler()
-        sc_y = StandardScaler()
-        X= sc_X.fit_transform(X_train)
-        y= sc_y.fit_transform(Y_train)
-        X1= sc_X.fit_transform(X_test)
-        y1= sc_y.fit_transform(Y_test)
-        y=y.ravel()
-        y1=y1.ravel()  
+#         model.fit(trainX, y, epochs = epochs, batch_size = batch_size,verbose=0)
 
-        import numpy
-
-        trainX = numpy.reshape(X, (X.shape[0], X.shape[1],1))
-        testX = numpy.reshape(X1, (X1.shape[0], X1.shape[1],1))
-
-        numpy.random.seed(1234)
-        import tensorflow as tf
-        tf.random.set_seed(1234)
-
-        import os 
+#          # make predictions
+#         y_pred_train = model.predict(trainX)
+#         y_pred_test = model.predict(testX)
         
-        from tensorflow.keras.models import Sequential
-        from tensorflow.keras.layers import Dense
-        from tensorflow.keras.layers import LSTM
+#         y_pred_test= numpy.array(y_pred_test).ravel()
+#         y_pred_test=pd.DataFrame(y_pred_test)
+#         y1=pd.DataFrame(y1)
+#         y=pd.DataFrame(y)
+#         y_pred_train= numpy.array(y_pred_train).ravel()
+#         y_pred_train=pd.DataFrame(y_pred_train)
+
+#         y_test= sc_y.inverse_transform (y1)
+#         y_train= sc_y.inverse_transform (y)
+
+#         y_pred_test1= sc_y.inverse_transform (y_pred_test)
+#         y_pred_train1= sc_y.inverse_transform (y_pred_train)
 
 
-        # LSTM Archithecture Summary:
-        # - input_shape= (qtd. registros/janela temporal, características (1 neste caso)).
-        # - Camada Sequencial = 128 neurônios. ([xᵢ,t-5] → [xᵢ,t-4] → [xᵢ,t-3] → [xᵢ,t-2] → [xᵢ,t-1] → [xᵢ,t] - 128 Unidades)
-        # - Camada Densa = 1 neurônio. Previsao. Input: ht (último estado oculto) pertencente a R128. y^​=w'hT​+b. output_shape=(qtd. registros, 1).
-        neuron=128
-        model = Sequential()
-        model.add(LSTM(units = neuron,input_shape=(trainX.shape[1], trainX.shape[2])))
-        model.add(Dense(64, activation='relu'))
-        model.add(Dense(1))
-        optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
-        model.compile(loss='mse',optimizer=optimizer)
+#         pred_test.append(y_pred_test1)
+#         test_ori.append(y_test)
+#         pred_train.append(y_pred_train1)
+#         train_ori.append(y_train)
 
-        model.fit(trainX, y, epochs = epochs, batch_size = batch_size,verbose=0)
+#         K.clear_session()
+#         gc.collect()
 
-         # make predictions
-        y_pred_train = model.predict(trainX)
-        y_pred_test = model.predict(testX)
+
+#     result_pred_test= pd.DataFrame.from_records(pred_test)
+#     result_pred_train= pd.DataFrame.from_records(pred_train)
+
+
+#     a=result_pred_test.sum(axis = 0, skipna = True) 
+#     b=result_pred_train.sum(axis = 0, skipna = True) 
+
+
+#     dataframe=pd.DataFrame(dfs)
+#     dataset=dataframe.values
+
+#     train_size = int(len(dataset) * data_partition)
+#     test_size = len(dataset) - train_size
+#     train, test = dataset[0:train_size], dataset[train_size:len(dataset)]
+
+#     trainX, trainY = create_dataset(train, look_back)
+#     testX, testY = create_dataset(test, look_back)
+#     X_train=pd.DataFrame(trainX)
+#     Y_train=pd.DataFrame(trainY)
+#     X_test=pd.DataFrame(testX)
+#     Y_test=pd.DataFrame(testY)
+
+#     sc_X = StandardScaler()
+#     sc_y = StandardScaler() 
+#     X= sc_X.fit_transform(X_train)
+#     y= sc_y.fit_transform(Y_train)
+#     X1= sc_X.fit_transform(X_test)
+#     y1= sc_y.fit_transform(Y_test)
+#     y=y.ravel()
+#     y1=y1.ravel()
+
+#     trainX = numpy.reshape(X, (X.shape[0], 1, X.shape[1]))
+#     testX = numpy.reshape(X1, (X1.shape[0], 1, X1.shape[1]))
+
+#     numpy.random.seed(1234)
+
+#     y1=pd.DataFrame(y1)
+#     y=pd.DataFrame(y)
+
+#     y_test= sc_y.inverse_transform (y1)
+#     y_train= sc_y.inverse_transform (y)
+
+#     a= pd.DataFrame(a)    
+#     y_test= pd.DataFrame(y_test)    
+
+#     #summarize the fit of the model
+#     mask = y_test != 0
+#     mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
+#     classic_mape = np.mean(
+#         np.abs((y_test[mask] - a[mask]) / y_test[mask])
+#     ) * 100
+#     rmse= sqrt(mean_squared_error(y_test,a))
+#     mae=metrics.mean_absolute_error(y_test,a)
+
+    
+#     print('MAPE',mape)
+#     print('Classic MAPE', classic_mape)
+#     print('RMSE',rmse)
+#     print('MAE',mae)
+
+#     # Save the real and predict values
+#     np.savetxt(os.path.join(BASE_DIR, 'y_test.txt'), y_test.values.flatten(), fmt='%.6f')
+#     np.savetxt(os.path.join(BASE_DIR, 'y_pred_stable_layer.txt'), a.values.flatten(), fmt='%.6f')
+
+#     dates = data1['Month'].iloc[-len(y_test):]
+#     dates = pd.to_datetime(dates)
+
+#     np.savetxt(os.path.join(BASE_DIR, 'dates.txt'), dates.astype(str), fmt='%s')
+
+#     return y_test.values.flatten(), a.values.flatten(), dates.astype(str).values
+
+
+# ##Proposed Method Hybrid CEEMDAN-EWT LSTM with dropout Layer
+
+# def proposed_method_dropout_layer(new_data,i,look_back,data_partition,cap):
+
+#     x=i
+#     data1=new_data.loc[new_data['Month'].isin(x)]
+#     data1=data1.reset_index(drop=True)
+#     data1=data1.dropna()
+    
+#     datas=data1['P_avg']
+#     datas_wind=pd.DataFrame(datas)
+#     dfs=datas
+#     s = dfs.values
+
+#     emd = CEEMDAN(epsilon=0.05)
+#     emd.noise_seed(12345)
+
+#     IMFs = emd(s)
+
+#     full_imf=pd.DataFrame(IMFs)
+#     ceemdan1=full_imf.T
+    
+#     imf1=ceemdan1.iloc[:,0]
+#     imf_dataps=numpy.array(imf1)
+#     imf_datasetss= imf_dataps.reshape(-1,1)
+#     imf_new_datasets=pd.DataFrame(imf_datasetss)
+
+#     ewt,  mfb ,boundaries = ewtpy.EWT1D(imf1, N =3)
+#     df_ewt=pd.DataFrame(ewt)
+
+#     df_ewt.drop(df_ewt.columns[2],axis=1,inplace=True)
+#     denoised=df_ewt.sum(axis = 1, skipna = True) 
+#     ceemdan_without_imf1=ceemdan1.iloc[:,1:]
+#     new_ceemdan=pd.concat([denoised,ceemdan_without_imf1],axis=1)    
+
+#     pred_test=[]
+#     test_ori=[]
+#     pred_train=[]
+#     train_ori=[]
+
+#     batch_size=64
+#     lr=0.001
+#     optimizer='Adam'
+
+#     for col in new_ceemdan:
+
+#         datasetss2=pd.DataFrame(new_ceemdan[col])
+#         datasets=datasetss2.values
+#         train_size = int(len(datasets) * data_partition)
+#         test_size = len(datasets) - train_size
+#         train, test = datasets[0:train_size], datasets[train_size:len(datasets)]
+
+#         trainX, trainY = create_dataset(train, look_back)
+#         testX, testY = create_dataset(test, look_back)
+#         X_train=pd.DataFrame(trainX)
+#         Y_train=pd.DataFrame(trainY)
+#         X_test=pd.DataFrame(testX)
+#         Y_test=pd.DataFrame(testY)
+#         sc_X = StandardScaler()
+#         sc_y = StandardScaler()
+#         X= sc_X.fit_transform(X_train)
+#         y= sc_y.fit_transform(Y_train)
+#         X1= sc_X.fit_transform(X_test)
+#         y1= sc_y.fit_transform(Y_test)
+#         y=y.ravel()
+#         y1=y1.ravel()  
+
+#         trainX = numpy.reshape(X, (X.shape[0], X.shape[1],1))
+#         testX = numpy.reshape(X1, (X1.shape[0], X1.shape[1],1))
+
+#         numpy.random.seed(1234)
+#         tf.random.set_seed(1234)
+
+#         # LSTM Archithecture Summary:
+#         # - input_shape= (qtd. registros/janela temporal, características (1 neste caso)).
+#         # - Camada Sequencial = 128 neurônios. ([xᵢ,t-5] → [xᵢ,t-4] → [xᵢ,t-3] → [xᵢ,t-2] → [xᵢ,t-1] → [xᵢ,t] - 128 Unidades)
+#         # - Camada Densa = 1 neurônio. Previsao. Input: ht (último estado oculto) pertencente a R128. y^​=w'hT​+b. output_shape=(qtd. registros, 1).
+#         neuron=128
+#         model = Sequential()
+#         model.add(LSTM(units = neuron,input_shape=(trainX.shape[1], trainX.shape[2])))
+#         model.add(Dropout(0.2))
+#         model.add(Dense(1))
+#         optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+#         model.compile(loss='mse',optimizer=optimizer)
+
+#         model.fit(trainX, y, epochs = epochs, batch_size = batch_size,verbose=0)
+
+#          # make predictions
+#         y_pred_train = model.predict(trainX)
+#         y_pred_test = model.predict(testX)
         
-        y_pred_test= numpy.array(y_pred_test).ravel()
-        y_pred_test=pd.DataFrame(y_pred_test)
-        y1=pd.DataFrame(y1)
-        y=pd.DataFrame(y)
-        y_pred_train= numpy.array(y_pred_train).ravel()
-        y_pred_train=pd.DataFrame(y_pred_train)
+#         y_pred_test= numpy.array(y_pred_test).ravel()
+#         y_pred_test=pd.DataFrame(y_pred_test)
+#         y1=pd.DataFrame(y1)
+#         y=pd.DataFrame(y)
+#         y_pred_train= numpy.array(y_pred_train).ravel()
+#         y_pred_train=pd.DataFrame(y_pred_train)
 
-        y_test= sc_y.inverse_transform (y1)
-        y_train= sc_y.inverse_transform (y)
+#         y_test= sc_y.inverse_transform (y1)
+#         y_train= sc_y.inverse_transform (y)
 
-        y_pred_test1= sc_y.inverse_transform (y_pred_test)
-        y_pred_train1= sc_y.inverse_transform (y_pred_train)
-
-
-        pred_test.append(y_pred_test1)
-        test_ori.append(y_test)
-        pred_train.append(y_pred_train1)
-        train_ori.append(y_train)
-
-        K.clear_session()
-        import gc
-        gc.collect()
+#         y_pred_test1= sc_y.inverse_transform (y_pred_test)
+#         y_pred_train1= sc_y.inverse_transform (y_pred_train)
 
 
-    result_pred_test= pd.DataFrame.from_records(pred_test)
-    result_pred_train= pd.DataFrame.from_records(pred_train)
+#         pred_test.append(y_pred_test1)
+#         test_ori.append(y_test)
+#         pred_train.append(y_pred_train1)
+#         train_ori.append(y_train)
+
+#         K.clear_session()
+#         gc.collect()
 
 
-    a=result_pred_test.sum(axis = 0, skipna = True) 
-    b=result_pred_train.sum(axis = 0, skipna = True) 
+#     result_pred_test= pd.DataFrame.from_records(pred_test)
+#     result_pred_train= pd.DataFrame.from_records(pred_train)
 
 
-    dataframe=pd.DataFrame(dfs)
-    dataset=dataframe.values
-
-    train_size = int(len(dataset) * data_partition)
-    test_size = len(dataset) - train_size
-    train, test = dataset[0:train_size], dataset[train_size:len(dataset)]
-
-    trainX, trainY = create_dataset(train, look_back)
-    testX, testY = create_dataset(test, look_back)
-    X_train=pd.DataFrame(trainX)
-    Y_train=pd.DataFrame(trainY)
-    X_test=pd.DataFrame(testX)
-    Y_test=pd.DataFrame(testY)
-
-    sc_X = StandardScaler()
-    sc_y = StandardScaler() 
-    X= sc_X.fit_transform(X_train)
-    y= sc_y.fit_transform(Y_train)
-    X1= sc_X.fit_transform(X_test)
-    y1= sc_y.fit_transform(Y_test)
-    y=y.ravel()
-    y1=y1.ravel()
-
-    import numpy
-
-    trainX = numpy.reshape(X, (X.shape[0], 1, X.shape[1]))
-    testX = numpy.reshape(X1, (X1.shape[0], 1, X1.shape[1]))
-
-    numpy.random.seed(1234)
-    import tensorflow as tf
-
-    y1=pd.DataFrame(y1)
-    y=pd.DataFrame(y)
-
-    y_test= sc_y.inverse_transform (y1)
-    y_train= sc_y.inverse_transform (y)
+#     a=result_pred_test.sum(axis = 0, skipna = True) 
+#     b=result_pred_train.sum(axis = 0, skipna = True) 
 
 
-    a= pd.DataFrame(a)    
-    y_test= pd.DataFrame(y_test)    
+#     dataframe=pd.DataFrame(dfs)
+#     dataset=dataframe.values
+
+#     train_size = int(len(dataset) * data_partition)
+#     test_size = len(dataset) - train_size
+#     train, test = dataset[0:train_size], dataset[train_size:len(dataset)]
+
+#     trainX, trainY = create_dataset(train, look_back)
+#     testX, testY = create_dataset(test, look_back)
+#     X_train=pd.DataFrame(trainX)
+#     Y_train=pd.DataFrame(trainY)
+#     X_test=pd.DataFrame(testX)
+#     Y_test=pd.DataFrame(testY)
+
+#     sc_X = StandardScaler()
+#     sc_y = StandardScaler() 
+#     X= sc_X.fit_transform(X_train)
+#     y= sc_y.fit_transform(Y_train)
+#     X1= sc_X.fit_transform(X_test)
+#     y1= sc_y.fit_transform(Y_test)
+#     y=y.ravel()
+#     y1=y1.ravel()
+
+#     trainX = numpy.reshape(X, (X.shape[0], 1, X.shape[1]))
+#     testX = numpy.reshape(X1, (X1.shape[0], 1, X1.shape[1]))
+
+#     numpy.random.seed(1234)
+
+#     y1=pd.DataFrame(y1)
+#     y=pd.DataFrame(y)
+
+#     y_test= sc_y.inverse_transform (y1)
+#     y_train= sc_y.inverse_transform (y)
 
 
-    #summarize the fit of the model
-    mask = y_test != 0
-    mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
-    classic_mape = np.mean(
-        np.abs((y_test[mask] - a[mask]) / y_test[mask])
-    ) * 100
-    rmse= sqrt(mean_squared_error(y_test,a))
-    mae=metrics.mean_absolute_error(y_test,a)
+#     a= pd.DataFrame(a)    
+#     y_test= pd.DataFrame(y_test)    
+
+
+#     #summarize the fit of the model
+#     mask = y_test != 0
+#     mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
+#     classic_mape = np.mean(
+#         np.abs((y_test[mask] - a[mask]) / y_test[mask])
+#     ) * 100
+#     rmse= sqrt(mean_squared_error(y_test,a))
+#     mae=metrics.mean_absolute_error(y_test,a)
 
     
-    print('MAPE',mape)
-    print('Classic MAPE', classic_mape)
-    print('RMSE',rmse)
-    print('MAE',mae)
+#     print('MAPE',mape)
+#     print('Classic MAPE', classic_mape)
+#     print('RMSE',rmse)
+#     print('MAE',mae)
 
-    # Save the real and predict values
-    np.savetxt(os.path.join(BASE_DIR, 'y_test.txt'), y_test.values.flatten(), fmt='%.6f')
-    np.savetxt(os.path.join(BASE_DIR, 'y_pred_stable_layer.txt'), a.values.flatten(), fmt='%.6f')
+#     # Save the real and predict values
+#     np.savetxt(os.path.join(BASE_DIR, 'y_test.txt'), y_test.values.flatten(), fmt='%.6f')
+#     np.savetxt(os.path.join(BASE_DIR, 'y_pred_dropout_layer.txt'), a.values.flatten(), fmt='%.6f')
 
-    dates = data1['Month'].iloc[-len(y_test):]
-    dates = pd.to_datetime(dates)
+#     dates = data1['Month'].iloc[-len(y_test):]
+#     dates = pd.to_datetime(dates)
 
-    np.savetxt(os.path.join(BASE_DIR, 'dates.txt'), dates.astype(str), fmt='%s')
+#     np.savetxt(os.path.join(BASE_DIR, 'dates.txt'), dates.astype(str), fmt='%s')
 
-    return y_test.values.flatten(), a.values.flatten(), dates.astype(str).values
-
-
-##Proposed Method Hybrid CEEMDAN-EWT LSTM with dropout Layer
-
-def proposed_method_dropout_layer(new_data,i,look_back,data_partition,cap):
-
-    x=i
-    data1=new_data.loc[new_data['Month'].isin(x)]
-    data1=data1.reset_index(drop=True)
-    data1=data1.dropna()
-    
-    datas=data1['P_avg']
-    datas_wind=pd.DataFrame(datas)
-    dfs=datas
-    s = dfs.values
-
-    from PyEMD import EMD,EEMD,CEEMDAN
-    import numpy
-
-    emd = CEEMDAN(epsilon=0.05)
-    emd.noise_seed(12345)
-
-    IMFs = emd(s)
-
-    full_imf=pd.DataFrame(IMFs)
-    ceemdan1=full_imf.T
-    
-    imf1=ceemdan1.iloc[:,0]
-    imf_dataps=numpy.array(imf1)
-    imf_datasetss= imf_dataps.reshape(-1,1)
-    imf_new_datasets=pd.DataFrame(imf_datasetss)
-
-    import ewtpy
-
-    ewt,  mfb ,boundaries = ewtpy.EWT1D(imf1, N =3)
-    df_ewt=pd.DataFrame(ewt)
-
-    df_ewt.drop(df_ewt.columns[2],axis=1,inplace=True)
-    denoised=df_ewt.sum(axis = 1, skipna = True) 
-    ceemdan_without_imf1=ceemdan1.iloc[:,1:]
-    new_ceemdan=pd.concat([denoised,ceemdan_without_imf1],axis=1)    
-    
-
-    pred_test=[]
-    test_ori=[]
-    pred_train=[]
-    train_ori=[]
-
-    batch_size=64
-    lr=0.001
-    optimizer='Adam'
-
-    for col in new_ceemdan:
-
-        datasetss2=pd.DataFrame(new_ceemdan[col])
-        datasets=datasetss2.values
-        train_size = int(len(datasets) * data_partition)
-        test_size = len(datasets) - train_size
-        train, test = datasets[0:train_size], datasets[train_size:len(datasets)]
-
-        trainX, trainY = create_dataset(train, look_back)
-        testX, testY = create_dataset(test, look_back)
-        X_train=pd.DataFrame(trainX)
-        Y_train=pd.DataFrame(trainY)
-        X_test=pd.DataFrame(testX)
-        Y_test=pd.DataFrame(testY)
-        sc_X = StandardScaler()
-        sc_y = StandardScaler()
-        X= sc_X.fit_transform(X_train)
-        y= sc_y.fit_transform(Y_train)
-        X1= sc_X.fit_transform(X_test)
-        y1= sc_y.fit_transform(Y_test)
-        y=y.ravel()
-        y1=y1.ravel()  
-
-        import numpy
-
-        trainX = numpy.reshape(X, (X.shape[0], X.shape[1],1))
-        testX = numpy.reshape(X1, (X1.shape[0], X1.shape[1],1))
-
-        numpy.random.seed(1234)
-        import tensorflow as tf
-        tf.random.set_seed(1234)
-
-        import os 
-        
-        from tensorflow.keras.models import Sequential
-        from tensorflow.keras.layers import Dense, Dropout, Activation
-        from tensorflow.keras.layers import LSTM
-
-
-        # LSTM Archithecture Summary:
-        # - input_shape= (qtd. registros/janela temporal, características (1 neste caso)).
-        # - Camada Sequencial = 128 neurônios. ([xᵢ,t-5] → [xᵢ,t-4] → [xᵢ,t-3] → [xᵢ,t-2] → [xᵢ,t-1] → [xᵢ,t] - 128 Unidades)
-        # - Camada Densa = 1 neurônio. Previsao. Input: ht (último estado oculto) pertencente a R128. y^​=w'hT​+b. output_shape=(qtd. registros, 1).
-        neuron=128
-        model = Sequential()
-        model.add(LSTM(units = neuron,input_shape=(trainX.shape[1], trainX.shape[2])))
-        model.add(Dropout(0.2))
-        model.add(Dense(1))
-        optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
-        model.compile(loss='mse',optimizer=optimizer)
-
-        model.fit(trainX, y, epochs = epochs, batch_size = batch_size,verbose=0)
-
-         # make predictions
-        y_pred_train = model.predict(trainX)
-        y_pred_test = model.predict(testX)
-        
-        y_pred_test= numpy.array(y_pred_test).ravel()
-        y_pred_test=pd.DataFrame(y_pred_test)
-        y1=pd.DataFrame(y1)
-        y=pd.DataFrame(y)
-        y_pred_train= numpy.array(y_pred_train).ravel()
-        y_pred_train=pd.DataFrame(y_pred_train)
-
-        y_test= sc_y.inverse_transform (y1)
-        y_train= sc_y.inverse_transform (y)
-
-        y_pred_test1= sc_y.inverse_transform (y_pred_test)
-        y_pred_train1= sc_y.inverse_transform (y_pred_train)
-
-
-        pred_test.append(y_pred_test1)
-        test_ori.append(y_test)
-        pred_train.append(y_pred_train1)
-        train_ori.append(y_train)
-
-        K.clear_session()
-        import gc
-        gc.collect()
-
-
-    result_pred_test= pd.DataFrame.from_records(pred_test)
-    result_pred_train= pd.DataFrame.from_records(pred_train)
-
-
-    a=result_pred_test.sum(axis = 0, skipna = True) 
-    b=result_pred_train.sum(axis = 0, skipna = True) 
-
-
-    dataframe=pd.DataFrame(dfs)
-    dataset=dataframe.values
-
-    train_size = int(len(dataset) * data_partition)
-    test_size = len(dataset) - train_size
-    train, test = dataset[0:train_size], dataset[train_size:len(dataset)]
-
-    trainX, trainY = create_dataset(train, look_back)
-    testX, testY = create_dataset(test, look_back)
-    X_train=pd.DataFrame(trainX)
-    Y_train=pd.DataFrame(trainY)
-    X_test=pd.DataFrame(testX)
-    Y_test=pd.DataFrame(testY)
-
-    sc_X = StandardScaler()
-    sc_y = StandardScaler() 
-    X= sc_X.fit_transform(X_train)
-    y= sc_y.fit_transform(Y_train)
-    X1= sc_X.fit_transform(X_test)
-    y1= sc_y.fit_transform(Y_test)
-    y=y.ravel()
-    y1=y1.ravel()
-
-    import numpy
-
-    trainX = numpy.reshape(X, (X.shape[0], 1, X.shape[1]))
-    testX = numpy.reshape(X1, (X1.shape[0], 1, X1.shape[1]))
-
-    numpy.random.seed(1234)
-    import tensorflow as tf
-
-    y1=pd.DataFrame(y1)
-    y=pd.DataFrame(y)
-
-    y_test= sc_y.inverse_transform (y1)
-    y_train= sc_y.inverse_transform (y)
-
-
-    a= pd.DataFrame(a)    
-    y_test= pd.DataFrame(y_test)    
-
-
-    #summarize the fit of the model
-    mask = y_test != 0
-    mape=numpy.mean((numpy.abs(y_test-a))/cap)*100
-    classic_mape = np.mean(
-        np.abs((y_test[mask] - a[mask]) / y_test[mask])
-    ) * 100
-    rmse= sqrt(mean_squared_error(y_test,a))
-    mae=metrics.mean_absolute_error(y_test,a)
-
-    
-    print('MAPE',mape)
-    print('Classic MAPE', classic_mape)
-    print('RMSE',rmse)
-    print('MAE',mae)
-
-    # Save the real and predict values
-    np.savetxt(os.path.join(BASE_DIR, 'y_test.txt'), y_test.values.flatten(), fmt='%.6f')
-    np.savetxt(os.path.join(BASE_DIR, 'y_pred_dropout_layer.txt'), a.values.flatten(), fmt='%.6f')
-
-    dates = data1['Month'].iloc[-len(y_test):]
-    dates = pd.to_datetime(dates)
-
-    np.savetxt(os.path.join(BASE_DIR, 'dates.txt'), dates.astype(str), fmt='%s')
-
-    return y_test.values.flatten(), a.values.flatten(), dates.astype(str).values
+#     return y_test.values.flatten(), a.values.flatten(), dates.astype(str).values
 
 
 ##Proposed Method Hybrid CEEMDAN-EWT LSTM with stable and dropout layer
 
-def proposed_method_stable_and_dropout_layer(new_data,i,look_back,data_partition,cap):
+def proposed_method_stable_and_dropout_layer(datasets, look_back, data_partition, cap):
 
-    x=i
-    data1=new_data.loc[new_data['Month'].isin(x)]
-    data1=data1.reset_index(drop=True)
-    data1=data1.dropna()
-    
-    datas=data1['P_avg']
-    datas_wind=pd.DataFrame(datas)
-    dfs=datas
-    s = dfs.values
+    # Prepara o sinal para o CEEMDAN
+    s = np.ascontiguousarray(
+        np.asarray(datasets, dtype=np.float64).reshape(-1)
+    )
 
-    from PyEMD import EMD,EEMD,CEEMDAN
-    import numpy
+    emd = CEEMDAN(
+        trials=10,
+        epsilon=0.05,
+        parallel=False
+    )
 
-    emd = CEEMDAN(epsilon=0.05)
     emd.noise_seed(12345)
 
-    IMFs = emd(s)
+    IMFs = emd.ceemdan(s)
 
-    full_imf=pd.DataFrame(IMFs)
+    print("Shape IMFs:", IMFs.shape, flush=True)
+
+    full_imf = pd.DataFrame(IMFs)
+    print("Quantidade IMFs", full_imf.shape[0], flush=True)
+
     ceemdan1=full_imf.T
     
     imf1=ceemdan1.iloc[:,0]
-    imf_dataps=numpy.array(imf1)
-    imf_datasetss= imf_dataps.reshape(-1,1)
-    imf_new_datasets=pd.DataFrame(imf_datasetss)
-
-    import ewtpy
 
     ewt,  mfb ,boundaries = ewtpy.EWT1D(imf1, N =3)
+
     df_ewt=pd.DataFrame(ewt)
 
     df_ewt.drop(df_ewt.columns[2],axis=1,inplace=True)
@@ -2585,7 +2409,6 @@ def proposed_method_stable_and_dropout_layer(new_data,i,look_back,data_partition
     ceemdan_without_imf1=ceemdan1.iloc[:,1:]
     new_ceemdan=pd.concat([denoised,ceemdan_without_imf1],axis=1)    
     
-
     pred_test=[]
     test_ori=[]
     pred_train=[]
@@ -2618,22 +2441,12 @@ def proposed_method_stable_and_dropout_layer(new_data,i,look_back,data_partition
         y=y.ravel()
         y1=y1.ravel()  
 
-        import numpy
-
         trainX = numpy.reshape(X, (X.shape[0], X.shape[1],1))
         testX = numpy.reshape(X1, (X1.shape[0], X1.shape[1],1))
 
         numpy.random.seed(1234)
-        import tensorflow as tf
         tf.random.set_seed(1234)
-
-        import os 
         
-        from tensorflow.keras.models import Sequential
-        from tensorflow.keras.layers import Dense, Dropout, Activation
-        from tensorflow.keras.layers import LSTM
-
-
         # LSTM Archithecture Summary:
         # - input_shape= (qtd. registros/janela temporal, características (1 neste caso)).
         # - Camada Sequencial = 128 neurônios. ([xᵢ,t-5] → [xᵢ,t-4] → [xᵢ,t-3] → [xᵢ,t-2] → [xᵢ,t-1] → [xᵢ,t] - 128 Unidades)
@@ -2649,7 +2462,7 @@ def proposed_method_stable_and_dropout_layer(new_data,i,look_back,data_partition
 
         model.fit(trainX, y, epochs = epochs, batch_size = batch_size,verbose=0)
 
-         # make predictions
+        # make predictions
         y_pred_train = model.predict(trainX)
         y_pred_test = model.predict(testX)
         
@@ -2704,13 +2517,10 @@ def proposed_method_stable_and_dropout_layer(new_data,i,look_back,data_partition
     y=y.ravel()
     y1=y1.ravel()
 
-    import numpy
-
     trainX = numpy.reshape(X, (X.shape[0], 1, X.shape[1]))
     testX = numpy.reshape(X1, (X1.shape[0], 1, X1.shape[1]))
 
     numpy.random.seed(1234)
-    import tensorflow as tf
 
     y1=pd.DataFrame(y1)
     y=pd.DataFrame(y)
@@ -2754,37 +2564,34 @@ def proposed_method_stable_and_dropout_layer(new_data,i,look_back,data_partition
 
 
 ## CEEMDAN-EWT BiLSTM
-def proposed_method_with_bilstm(new_data,i,look_back,data_partition,cap):
+def proposed_method_with_bilstm(datasets, look_back, data_partition, cap):
 
-    x=i
-    data1=new_data.loc[new_data['Month'].isin(x)]
-    data1=data1.reset_index(drop=True)
-    data1=data1.dropna()
-    
-    datas=data1['P_avg']
-    datas_wind=pd.DataFrame(datas)
-    dfs=datas
-    s = dfs.values
+    # Prepara o sinal para o CEEMDAN
+    s = np.ascontiguousarray(
+        np.asarray(datasets, dtype=np.float64).reshape(-1)
+    )
 
-    from PyEMD import EMD,EEMD,CEEMDAN
-    import numpy
+    emd = CEEMDAN(
+        trials=10,
+        epsilon=0.05,
+        parallel=False
+    )
 
-    emd = CEEMDAN(epsilon=0.05)
     emd.noise_seed(12345)
 
-    IMFs = emd(s)
+    IMFs = emd.ceemdan(s)
 
-    full_imf=pd.DataFrame(IMFs)
+    print("Shape IMFs:", IMFs.shape, flush=True)
+
+    full_imf = pd.DataFrame(IMFs)
+    print("Quantidade IMFs", full_imf.shape[0], flush=True)
+
     ceemdan1=full_imf.T
     
     imf1=ceemdan1.iloc[:,0]
-    imf_dataps=numpy.array(imf1)
-    imf_datasetss= imf_dataps.reshape(-1,1)
-    imf_new_datasets=pd.DataFrame(imf_datasetss)
-
-    import ewtpy
 
     ewt,  mfb ,boundaries = ewtpy.EWT1D(imf1, N =3)
+
     df_ewt=pd.DataFrame(ewt)
 
     df_ewt.drop(df_ewt.columns[2],axis=1,inplace=True)
@@ -2792,7 +2599,6 @@ def proposed_method_with_bilstm(new_data,i,look_back,data_partition,cap):
     ceemdan_without_imf1=ceemdan1.iloc[:,1:]
     new_ceemdan=pd.concat([denoised,ceemdan_without_imf1],axis=1)    
     
-
     pred_test=[]
     test_ori=[]
     pred_train=[]
@@ -2825,23 +2631,11 @@ def proposed_method_with_bilstm(new_data,i,look_back,data_partition,cap):
         y=y.ravel()
         y1=y1.ravel()  
 
-        import numpy
-
         trainX = numpy.reshape(X, (X.shape[0], X.shape[1],1))
         testX = numpy.reshape(X1, (X1.shape[0], X1.shape[1],1))
 
         numpy.random.seed(1234)
-        import tensorflow as tf
         tf.random.set_seed(1234)
-
-        
-    
-        import os 
-        
-        from tensorflow.keras.models import Sequential
-        from tensorflow.keras.layers import Dense, Dropout, Bidirectional
-        from tensorflow.keras.layers import LSTM
-
 
         # LSTM Archithecture Summary:
         # - input_shape= (qtd. registros/janela temporal, características (1 neste caso)).
@@ -2877,7 +2671,6 @@ def proposed_method_with_bilstm(new_data,i,look_back,data_partition,cap):
         y_pred_test1= sc_y.inverse_transform (y_pred_test)
         y_pred_train1= sc_y.inverse_transform (y_pred_train)
 
-
         pred_test.append(y_pred_test1)
         test_ori.append(y_test)
         pred_train.append(y_pred_train1)
@@ -2890,7 +2683,6 @@ def proposed_method_with_bilstm(new_data,i,look_back,data_partition,cap):
 
     a=result_pred_test.sum(axis = 0, skipna = True) 
     b=result_pred_train.sum(axis = 0, skipna = True) 
-
 
     dataframe=pd.DataFrame(dfs)
     dataset=dataframe.values
@@ -2915,20 +2707,16 @@ def proposed_method_with_bilstm(new_data,i,look_back,data_partition,cap):
     y=y.ravel()
     y1=y1.ravel()
 
-    import numpy
-
     trainX = numpy.reshape(X, (X.shape[0], 1, X.shape[1]))
     testX = numpy.reshape(X1, (X1.shape[0], 1, X1.shape[1]))
 
     numpy.random.seed(1234)
-    import tensorflow as tf
 
     y1=pd.DataFrame(y1)
     y=pd.DataFrame(y)
 
     y_test= sc_y.inverse_transform (y1)
     y_train= sc_y.inverse_transform (y)
-
 
     a= pd.DataFrame(a)    
     y_test= pd.DataFrame(y_test)    
@@ -2962,47 +2750,40 @@ def proposed_method_with_bilstm(new_data,i,look_back,data_partition,cap):
 
 
 # CEEMDAN-EWT GRU
+def proposed_method_with_gru(datasets, look_back, data_partition, cap):
 
-def proposed_method_with_gru(new_data,i,look_back,data_partition,cap):
+    # Prepara o sinal para o CEEMDAN
+    s = np.ascontiguousarray(
+        np.asarray(datasets, dtype=np.float64).reshape(-1)
+    )
 
-    x=i
-    data1=new_data.loc[new_data['Month'].isin(x)]
-    data1=data1.reset_index(drop=True)
-    data1=data1.dropna()
+    emd = CEEMDAN(
+        trials=10,
+        epsilon=0.05,
+        parallel=False
+    )
 
-    dates = data1.Date
-    
-    datas=data1['P_avg']
-    datas_wind=pd.DataFrame(datas)
-    dfs=datas
-    s = dfs.values
-
-    from PyEMD import EMD,EEMD,CEEMDAN
-    import numpy
-
-    emd = CEEMDAN(epsilon=0.05)
     emd.noise_seed(12345)
 
-    IMFs = emd(s)
+    IMFs = emd.ceemdan(s)
 
-    full_imf=pd.DataFrame(IMFs)
+    print("Shape IMFs:", IMFs.shape, flush=True)
+
+    full_imf = pd.DataFrame(IMFs)
+    print("Quantidade IMFs", full_imf.shape[0], flush=True)
+
     ceemdan1=full_imf.T
     
     imf1=ceemdan1.iloc[:,0]
-    imf_dataps=numpy.array(imf1)
-    imf_datasetss= imf_dataps.reshape(-1,1)
-    imf_new_datasets=pd.DataFrame(imf_datasetss)
-
-    import ewtpy
 
     ewt,  mfb ,boundaries = ewtpy.EWT1D(imf1, N =3)
+
     df_ewt=pd.DataFrame(ewt)
 
     df_ewt.drop(df_ewt.columns[2],axis=1,inplace=True)
     denoised=df_ewt.sum(axis = 1, skipna = True) 
     ceemdan_without_imf1=ceemdan1.iloc[:,1:]
-    new_ceemdan=pd.concat([denoised,ceemdan_without_imf1],axis=1)
-    new_ceemdan.index = dates
+    new_ceemdan=pd.concat([denoised,ceemdan_without_imf1],axis=1)    
     
     pred_test=[]
     test_ori=[]
@@ -3043,23 +2824,11 @@ def proposed_method_with_gru(new_data,i,look_back,data_partition,cap):
         y=y.ravel()
         y1=y1.ravel()  
 
-        import numpy
-
         trainX = numpy.reshape(X, (X.shape[0], X.shape[1],1))
         testX = numpy.reshape(X1, (X1.shape[0], X1.shape[1],1))
 
         numpy.random.seed(1234)
-        import tensorflow as tf
         tf.random.set_seed(1234)
-
-        
-    
-        import os 
-        
-        from tensorflow.keras.models import Sequential
-        from tensorflow.keras.layers import Dense, Dropout, Activation
-        from tensorflow.keras.layers import GRU
-
 
         # LSTM Archithecture Summary:
         # - input_shape= (qtd. registros/janela temporal, características (1 neste caso)).
@@ -3091,20 +2860,16 @@ def proposed_method_with_gru(new_data,i,look_back,data_partition,cap):
         y_pred_test1= sc_y.inverse_transform (y_pred_test)
         y_pred_train1= sc_y.inverse_transform (y_pred_train)
 
-
         pred_test.append(y_pred_test1)
         test_ori.append(y_test)
         pred_train.append(y_pred_train1)
         train_ori.append(y_train)
 
-
     result_pred_test= pd.DataFrame.from_records(pred_test)
     result_pred_train= pd.DataFrame.from_records(pred_train)
 
-
     a=result_pred_test.sum(axis = 0, skipna = True) 
     b=result_pred_train.sum(axis = 0, skipna = True) 
-
 
     dataframe=pd.DataFrame(dfs)
     dataset=dataframe.values
@@ -3129,13 +2894,10 @@ def proposed_method_with_gru(new_data,i,look_back,data_partition,cap):
     y=y.ravel()
     y1=y1.ravel()
 
-    import numpy
-
     trainX = numpy.reshape(X, (X.shape[0], 1, X.shape[1]))
     testX = numpy.reshape(X1, (X1.shape[0], 1, X1.shape[1]))
 
     numpy.random.seed(1234)
-    import tensorflow as tf
 
     y1=pd.DataFrame(y1)
     y=pd.DataFrame(y)
@@ -3156,7 +2918,6 @@ def proposed_method_with_gru(new_data,i,look_back,data_partition,cap):
     ) * 100
     rmse= sqrt(mean_squared_error(y_test,a))
     mae=metrics.mean_absolute_error(y_test,a)
-
     
     print('MAPE',mape)
     print('Classic MAPE', classic_mape)
@@ -3175,37 +2936,34 @@ def proposed_method_with_gru(new_data,i,look_back,data_partition,cap):
 
 ## CEEMDAN-EWT BiGRU
 
-def proposed_method_with_bigru(new_data,i,look_back,data_partition,cap):
+def proposed_method_with_bigru(datasets, look_back, data_partition, cap):
 
-    x=i
-    data1=new_data.loc[new_data['Month'].isin(x)]
-    data1=data1.reset_index(drop=True)
-    data1=data1.dropna()
-    
-    datas=data1['P_avg']
-    datas_wind=pd.DataFrame(datas)
-    dfs=datas
-    s = dfs.values
+    # Prepara o sinal para o CEEMDAN
+    s = np.ascontiguousarray(
+        np.asarray(datasets, dtype=np.float64).reshape(-1)
+    )
 
-    from PyEMD import EMD,EEMD,CEEMDAN
-    import numpy
+    emd = CEEMDAN(
+        trials=10,
+        epsilon=0.05,
+        parallel=False
+    )
 
-    emd = CEEMDAN(epsilon=0.05)
     emd.noise_seed(12345)
 
-    IMFs = emd(s)
+    IMFs = emd.ceemdan(s)
 
-    full_imf=pd.DataFrame(IMFs)
+    print("Shape IMFs:", IMFs.shape, flush=True)
+
+    full_imf = pd.DataFrame(IMFs)
+    print("Quantidade IMFs", full_imf.shape[0], flush=True)
+
     ceemdan1=full_imf.T
     
     imf1=ceemdan1.iloc[:,0]
-    imf_dataps=numpy.array(imf1)
-    imf_datasetss= imf_dataps.reshape(-1,1)
-    imf_new_datasets=pd.DataFrame(imf_datasetss)
-
-    import ewtpy
 
     ewt,  mfb ,boundaries = ewtpy.EWT1D(imf1, N =3)
+
     df_ewt=pd.DataFrame(ewt)
 
     df_ewt.drop(df_ewt.columns[2],axis=1,inplace=True)
@@ -3213,7 +2971,6 @@ def proposed_method_with_bigru(new_data,i,look_back,data_partition,cap):
     ceemdan_without_imf1=ceemdan1.iloc[:,1:]
     new_ceemdan=pd.concat([denoised,ceemdan_without_imf1],axis=1)    
     
-
     pred_test=[]
     test_ori=[]
     pred_train=[]
@@ -3246,23 +3003,11 @@ def proposed_method_with_bigru(new_data,i,look_back,data_partition,cap):
         y=y.ravel()
         y1=y1.ravel()  
 
-        import numpy
-
         trainX = numpy.reshape(X, (X.shape[0], X.shape[1],1))
         testX = numpy.reshape(X1, (X1.shape[0], X1.shape[1],1))
 
         numpy.random.seed(1234)
-        import tensorflow as tf
         tf.random.set_seed(1234)
-
-        
-    
-        import os 
-        
-        from tensorflow.keras.models import Sequential
-        from tensorflow.keras.layers import Dense, Dropout, Bidirectional
-        from tensorflow.keras.layers import GRU
-
 
         # LSTM Archithecture Summary:
         # - input_shape= (qtd. registros/janela temporal, características (1 neste caso)).
@@ -3336,13 +3081,10 @@ def proposed_method_with_bigru(new_data,i,look_back,data_partition,cap):
     y=y.ravel()
     y1=y1.ravel()
 
-    import numpy
-
     trainX = numpy.reshape(X, (X.shape[0], 1, X.shape[1]))
     testX = numpy.reshape(X1, (X1.shape[0], 1, X1.shape[1]))
 
     numpy.random.seed(1234)
-    import tensorflow as tf
 
     y1=pd.DataFrame(y1)
     y=pd.DataFrame(y)
@@ -3350,10 +3092,8 @@ def proposed_method_with_bigru(new_data,i,look_back,data_partition,cap):
     y_test= sc_y.inverse_transform (y1)
     y_train= sc_y.inverse_transform (y)
 
-
     a= pd.DataFrame(a)    
     y_test= pd.DataFrame(y_test)    
-
 
     #summarize the fit of the model
     mask = y_test != 0
@@ -3363,7 +3103,6 @@ def proposed_method_with_bigru(new_data,i,look_back,data_partition,cap):
     ) * 100
     rmse= sqrt(mean_squared_error(y_test,a))
     mae=metrics.mean_absolute_error(y_test,a)
-
     
     print('MAPE',mape)
     print('Classic MAPE', classic_mape)
@@ -3383,8 +3122,7 @@ def proposed_method_with_bigru(new_data,i,look_back,data_partition,cap):
 
 
 # CEEMDAN-EWT Transformer with Keras
-
-def proposed_method_with_transformer_keras(new_data, i, look_back, data_partition, cap):
+def proposed_method_with_transformer_keras(datasets, look_back, data_partition, cap):
 
     # ===============================
     # MultiHeadAttention manual (compatível TF 2.3)
@@ -3442,7 +3180,6 @@ def proposed_method_with_transformer_keras(new_data, i, look_back, data_partitio
             self.d_model = d_model
 
         def call(self, x):
-            import tensorflow as tf
 
             length = tf.shape(x)[1]
 
@@ -3468,40 +3205,47 @@ def proposed_method_with_transformer_keras(new_data, i, look_back, data_partitio
 
             return x + pos_encoding
 
-    # ===============================
-    # 1. Seleção dos dados
-    # ===============================
-    data1 = new_data.loc[new_data['Month'].isin(i)]
-    data1 = data1.reset_index(drop=True).dropna()
+        # Prepara o sinal para o CEEMDAN
+    s = np.ascontiguousarray(
+        np.asarray(datasets, dtype=np.float64).reshape(-1)
+    )
 
-    dfs = data1['P_avg']
-    s = dfs.values
+    emd = CEEMDAN(
+        trials=10,
+        epsilon=0.05,
+        parallel=False
+    )
 
-    # ===============================
-    # 2. CEEMDAN
-    # ===============================
-    from PyEMD import CEEMDAN
-    emd = CEEMDAN(epsilon=0.05)
     emd.noise_seed(12345)
 
-    IMFs = emd(s)
-    ceemdan1 = pd.DataFrame(IMFs).T
+    IMFs = emd.ceemdan(s)
 
-    # ===============================
-    # 3. EWT
-    # ===============================
-    import ewtpy
+    print("Shape IMFs:", IMFs.shape, flush=True)
 
-    imf1 = ceemdan1.iloc[:, 0]
-    ewt, _, _ = ewtpy.EWT1D(imf1, N=3)
+    full_imf = pd.DataFrame(IMFs)
+    print("Quantidade IMFs", full_imf.shape[0], flush=True)
 
-    df_ewt = pd.DataFrame(ewt)
-    df_ewt.drop(df_ewt.columns[2], axis=1, inplace=True)
+    ceemdan1=full_imf.T
+    
+    imf1=ceemdan1.iloc[:,0]
 
-    denoised = df_ewt.sum(axis=1)
-    ceemdan_without_imf1 = ceemdan1.iloc[:, 1:]
+    ewt,  mfb ,boundaries = ewtpy.EWT1D(imf1, N =3)
 
-    new_ceemdan = pd.concat([denoised, ceemdan_without_imf1], axis=1)
+    df_ewt=pd.DataFrame(ewt)
+
+    df_ewt.drop(df_ewt.columns[2],axis=1,inplace=True)
+    denoised=df_ewt.sum(axis = 1, skipna = True) 
+    ceemdan_without_imf1=ceemdan1.iloc[:,1:]
+    new_ceemdan=pd.concat([denoised,ceemdan_without_imf1],axis=1)    
+    
+    pred_test=[]
+    test_ori=[]
+    pred_train=[]
+    train_ori=[]
+
+    batch_size=64
+    lr=0.001
+    optimizer='Adam'
 
     # ===============================
     # 4. Loop por componente
@@ -3617,37 +3361,34 @@ def proposed_method_with_transformer_keras(new_data, i, look_back, data_partitio
 
 # CEEMDAN-EWT PatchTransformer with TensorFlow
 
-def proposed_method_with_patchtransformer_tf(new_data,i,look_back,data_partition,cap):
+def proposed_method_with_patchtransformer_tf(datasets, look_back, data_partition, cap):
 
-    x=i
-    data1=new_data.loc[new_data['Month'].isin(x)]
-    data1=data1.reset_index(drop=True)
-    data1=data1.dropna()
-    
-    datas=data1['P_avg']
-    datas_wind=pd.DataFrame(datas)
-    dfs=datas
-    s = dfs.values
+    # Prepara o sinal para o CEEMDAN
+    s = np.ascontiguousarray(
+        np.asarray(datasets, dtype=np.float64).reshape(-1)
+    )
 
-    from PyEMD import EMD,EEMD,CEEMDAN
-    import numpy
+    emd = CEEMDAN(
+        trials=10,
+        epsilon=0.05,
+        parallel=False
+    )
 
-    emd = CEEMDAN(epsilon=0.05)
     emd.noise_seed(12345)
 
-    IMFs = emd(s)
+    IMFs = emd.ceemdan(s)
 
-    full_imf=pd.DataFrame(IMFs)
+    print("Shape IMFs:", IMFs.shape, flush=True)
+
+    full_imf = pd.DataFrame(IMFs)
+    print("Quantidade IMFs", full_imf.shape[0], flush=True)
+
     ceemdan1=full_imf.T
     
     imf1=ceemdan1.iloc[:,0]
-    imf_dataps=numpy.array(imf1)
-    imf_datasetss= imf_dataps.reshape(-1,1)
-    imf_new_datasets=pd.DataFrame(imf_datasetss)
-
-    import ewtpy
 
     ewt,  mfb ,boundaries = ewtpy.EWT1D(imf1, N =3)
+
     df_ewt=pd.DataFrame(ewt)
 
     df_ewt.drop(df_ewt.columns[2],axis=1,inplace=True)
@@ -3655,7 +3396,6 @@ def proposed_method_with_patchtransformer_tf(new_data,i,look_back,data_partition
     ceemdan_without_imf1=ceemdan1.iloc[:,1:]
     new_ceemdan=pd.concat([denoised,ceemdan_without_imf1],axis=1)    
     
-
     pred_test=[]
     test_ori=[]
     pred_train=[]
@@ -3688,17 +3428,11 @@ def proposed_method_with_patchtransformer_tf(new_data,i,look_back,data_partition
         y=y.ravel()
         y1=y1.ravel()  
 
-        import numpy
-
         trainX = numpy.reshape(X, (X.shape[0], X.shape[1],1))
         testX = numpy.reshape(X1, (X1.shape[0], X1.shape[1],1))
 
         numpy.random.seed(1234)
-        import tensorflow as tf
         tf.random.set_seed(1234)
-
-        import os 
-        
 
         import torch
         import torch.nn as nn
@@ -3808,8 +3542,6 @@ def proposed_method_with_patchtransformer_tf(new_data,i,look_back,data_partition
 
         model.eval()
 
-        import numpy as np
-
         # ---- TRAIN PREDICTIONS ----
         preds_train = []
         with torch.no_grad():
@@ -3885,11 +3617,6 @@ def proposed_method_with_kan(
     new_data, i, look_back, data_partition, cap,
     epochs=epochs, batch_size=32, Q=4
 ):
-    import numpy as np
-    import pandas as pd
-    from math import sqrt
-    from sklearn.metrics import mean_squared_error
-    from sklearn import metrics
     import torch
     from torch.utils.data import DataLoader
     import torch
@@ -3974,7 +3701,6 @@ def proposed_method_with_kan(
     # -----------------------------
     # CEEMDAN
     # -----------------------------
-    from PyEMD import CEEMDAN
     emd = CEEMDAN(epsilon=0.05)
     emd.noise_seed(12345)
     IMFs = emd(s)
@@ -3984,7 +3710,6 @@ def proposed_method_with_kan(
     # -----------------------------
     # EWT no IMF1
     # -----------------------------
-    import ewtpy
     imf1 = ceemdan1.iloc[:, 0]
     ewt, _, _ = ewtpy.EWT1D(imf1, N=3)
 
@@ -4158,13 +3883,6 @@ def proposed_method_with_deeponet(
     new_data, i, look_back, data_partition, cap,
     epochs=50, batch_size=32, hidden_dim=64
 ):
-    import numpy as np
-    import pandas as pd
-    from PyEMD import CEEMDAN
-    import ewtpy
-    from sklearn.metrics import mean_squared_error
-    from sklearn import metrics
-    from math import sqrt
     import torch
     from torch.utils.data import DataLoader
 
@@ -4357,14 +4075,6 @@ def proposed_method_with_lstm_deeponet(
     new_data, i, look_back, data_partition, cap,
     epochs=50, batch_size=32, hidden_dim=64
 ):
-
-    import numpy as np
-    import pandas as pd
-    from PyEMD import CEEMDAN
-    import ewtpy
-    from sklearn.metrics import mean_squared_error
-    from sklearn import metrics
-    from math import sqrt
     import torch
     import torch.nn as nn
     from torch.utils.data import DataLoader, Dataset
@@ -4564,7 +4274,6 @@ def proposed_method_with_lstm_deeponet(
 
 
 if __name__=='__main__':
-    import pandas as pd
     df = pd.read_csv('dataset/final_la_haute_R0711.csv')
     df['Date'] = pd.to_datetime(df['Date_time'], dayfirst=True)
     df['Year'] = df['Date'].dt.year 
