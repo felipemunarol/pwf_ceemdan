@@ -11,8 +11,8 @@ from PyEMD import EMD, EEMD, CEEMDAN
 from scipy.signal import hilbert
 import ewtpy
 import math
-import tensorflow as tf
 import numpy
+import gc
 
 import warnings
 import logging
@@ -53,7 +53,7 @@ from math import sqrt
 batch_size = 64
 epochs=10
 lr=0.001
-optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
+optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=lr)
 neuron=128
 
 #convert an array of values into a dataset matrix
@@ -2330,37 +2330,49 @@ def proposed_method_stable_and_dropout_layer(datasets, look_back, data_partition
 
     for col in new_ceemdan:
 
-        datasetss2=pd.DataFrame(new_ceemdan[col])
-        datasets=datasetss2.values
-        train_size = int(len(datasets) * data_partition)
-        test_size = len(datasets) - train_size
-        train, test = datasets[0:train_size], datasets[train_size:len(datasets)]
+        datasetss2 = new_ceemdan[col].to_numpy(dtype=np.float32).reshape(-1, 1)
+
+        train_size = int(len(datasetss2) * data_partition)
+        train = datasetss2[:train_size]
+        test = datasetss2[train_size:]
 
         trainX, trainY = create_dataset(train, look_back)
         testX, testY = create_dataset(test, look_back)
-        X_train=pd.DataFrame(trainX)
-        Y_train=pd.DataFrame(trainY)
-        X_test=pd.DataFrame(testX)
-        Y_test=pd.DataFrame(testY)
+
+        # Preparação dos dados
+        trainX = np.asarray(trainX, dtype=np.float32)
+        testX = np.asarray(testX, dtype=np.float32)
+        trainY = np.asarray(trainY, dtype=np.float32).reshape(-1, 1)
+        testY = np.asarray(testY, dtype=np.float32).reshape(-1, 1)
+
         sc_X = StandardScaler()
         sc_y = StandardScaler()
-        X= sc_X.fit_transform(X_train)
-        y= sc_y.fit_transform(Y_train)
-        X1= sc_X.fit_transform(X_test)
-        y1= sc_y.fit_transform(Y_test)
-        y=y.ravel()
-        y1=y1.ravel()  
 
-        trainX = numpy.reshape(X, (X.shape[0], X.shape[1],1))
-        testX = numpy.reshape(X1, (X1.shape[0], X1.shape[1],1))
+        # Ajusta os escaladores somente com os dados de treino
+        X = sc_X.fit_transform(
+            trainX.reshape(-1, trainX.shape[-1])
+        ).reshape(trainX.shape)
 
-        numpy.random.seed(1234)
+        X1 = sc_X.transform(
+            testX.reshape(-1, testX.shape[-1])
+        ).reshape(testX.shape)
+
+        y = sc_y.fit_transform(trainY)
+        y1 = sc_y.transform(testY)
+
+        # Formato esperado pela LSTM: (amostras, passos temporais, features)
+        trainX = np.ascontiguousarray(X.reshape(X.shape[0], X.shape[1], 1))
+        testX = np.ascontiguousarray(X1.reshape(X1.shape[0], X1.shape[1], 1))
+
+        y = np.ascontiguousarray(y.reshape(-1), dtype=np.float32)
+        y1 = np.ascontiguousarray(y1.reshape(-1), dtype=np.float32)
+
+        K.clear_session()
+        gc.collect()
+
+        np.random.seed(1234)
         tf.random.set_seed(1234)
-        
-        # LSTM Archithecture Summary:
-        # - input_shape= (qtd. registros/janela temporal, características (1 neste caso)).
-        # - Camada Sequencial = 128 neurônios. ([xᵢ,t-5] → [xᵢ,t-4] → [xᵢ,t-3] → [xᵢ,t-2] → [xᵢ,t-1] → [xᵢ,t] - 128 Unidades)
-        # - Camada Densa = 1 neurônio. Previsao. Input: ht (último estado oculto) pertencente a R128. y^​=w'hT​+b. output_shape=(qtd. registros, 1).
+
         model = Sequential()
         model.add(LSTM(units = neuron,input_shape=(trainX.shape[1], trainX.shape[2])))
         model.add(Dense(64, activation='relu'))
