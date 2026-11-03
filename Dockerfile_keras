@@ -40,9 +40,16 @@ RUN python3 -m pip install --no-cache-dir \
 RUN python3 -m pip install --no-cache-dir \
     matplotlib==3.7.3
 
-# Instalar PyEMD e EWT sem modificar os arquivos-fonte
+# CEEMDAN - PyEMD
 RUN python3 -m pip install --no-cache-dir \
-    EMD-signal==1.5.2 \
+    EMD-signal==1.5.2
+
+# Hilbert-Huang Transform
+RUN python3 -m pip install --no-cache-dir \
+    emd==0.7.0
+
+# Empirical Wavelet Transform
+RUN python3 -m pip install --no-cache-dir \
     ewtpy==0.2
 
 RUN python3 -m pip install --no-cache-dir \

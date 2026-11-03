@@ -1,0 +1,75 @@
+
+# Build:
+# docker build --no-cache -t ceemdan-model:v2 .
+
+# CPU:
+# docker run --rm -it --entrypoint bash -v "${PWD}:/app" ceemdan-model:v2
+# python3 -u run_france.py
+
+FROM python:3.10-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    OPENBLAS_NUM_THREADS=1 \
+    OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
+    NUMEXPR_NUM_THREADS=1 \
+    MPLCONFIGDIR=/tmp/matplotlib
+
+WORKDIR /app
+
+# Bibliotecas do sistema
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgomp1 \
+    libstdc++6 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Atualização do pip
+RUN python -m pip install --no-cache-dir --upgrade pip==23.3.2
+
+# PyTorch CPU
+RUN python -m pip install --no-cache-dir \
+    torch==2.2.2 \
+    --index-url https://download.pytorch.org/whl/cpu
+
+# Dependências científicas
+RUN python -m pip install --no-cache-dir \
+    numpy==1.23.5 \
+    scipy==1.10.1 \
+    pandas==1.5.3 \
+    scikit-learn==1.2.2 \
+    Pillow==10.0.1 \
+    matplotlib==3.7.3
+
+# CEEMDAN - PyEMD
+RUN python -m pip install --no-cache-dir \
+    EMD-signal==1.5.2
+
+# Hilbert-Huang Transform
+RUN python -m pip install --no-cache-dir \
+    emd==0.7.0
+
+# Empirical Wavelet Transform
+RUN python -m pip install --no-cache-dir \
+    ewtpy==0.2
+
+# Dependências auxiliares do projeto e do KAN
+RUN python -m pip install --no-cache-dir \
+    python-dateutil==2.8.2 \
+    pytz==2023.3 \
+    joblib==1.4.2 \
+    threadpoolctl==3.5.0 \
+    sympy==1.12 \
+    PyYAML==6.0.1 \
+    tqdm==4.66.5
+
+# Código do projeto
+COPY . .
+
+# Verificação das bibliotecas
+RUN python -c "import torch, numpy, scipy, pandas, sklearn, matplotlib, emd, ewtpy; from PyEMD import CEEMDAN; print('PyTorch:', torch.__version__); print('NumPy:', numpy.__version__); print('SciPy:', scipy.__version__); print('CUDA disponível:', torch.cuda.is_available()); print('Bibliotecas científicas OK')"
+
+# Verificação do SEQKAN
+RUN python -c "from seqKAN_public.seqKAN import SeqKANSeq; print('SEQKAN importado com sucesso')"
+
+CMD ["python", "-u", "run_france.py"]
