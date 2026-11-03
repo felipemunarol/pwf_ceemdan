@@ -155,6 +155,89 @@ def run_cv(method, datasets, dates, look_back, cap, n_splits=3, **kwargs):
         "dates": np.array(dates_all)
     }
 
+# Funcoes para o Transformer
+# ===============================
+# MultiHeadAttention manual (compatível TF 2.3)
+# ===============================
+class MultiHeadAttention(tf.keras.layers.Layer):
+    def __init__(self, embed_dim, num_heads=2):
+        super().__init__()
+        self.embed_dim = embed_dim
+        self.num_heads = num_heads
+
+        assert embed_dim % num_heads == 0
+        self.projection_dim = embed_dim // num_heads
+
+        self.query_dense = tf.keras.layers.Dense(embed_dim)
+        self.key_dense   = tf.keras.layers.Dense(embed_dim)
+        self.value_dense = tf.keras.layers.Dense(embed_dim)
+
+        self.combine_heads = tf.keras.layers.Dense(embed_dim)
+
+    def separate_heads(self, x, batch_size):
+        x = tf.reshape(x, (batch_size, -1, self.num_heads, self.projection_dim))
+        return tf.transpose(x, perm=[0, 2, 1, 3])
+
+    def attention(self, query, key, value):
+        score = tf.matmul(query, key, transpose_b=True)
+        dim_key = tf.cast(tf.shape(key)[-1], tf.float32)
+        scaled_score = score / tf.math.sqrt(dim_key)
+        weights = tf.nn.softmax(scaled_score, axis=-1)
+        return tf.matmul(weights, value)
+
+    def call(self, inputs):
+        batch_size = tf.shape(inputs)[0]
+
+        query = self.query_dense(inputs)
+        key   = self.key_dense(inputs)
+        value = self.value_dense(inputs)
+
+        query = self.separate_heads(query, batch_size)
+        key   = self.separate_heads(key, batch_size)
+        value = self.separate_heads(value, batch_size)
+
+        attention = self.attention(query, key, value)
+
+        attention = tf.transpose(attention, perm=[0, 2, 1, 3])
+        concat_attention = tf.reshape(attention, (batch_size, -1, self.embed_dim))
+
+        return self.combine_heads(concat_attention)
+
+# ===============================
+# Positional Encoding
+# ===============================
+class PositionalEncoding(tf.keras.layers.Layer):
+    def __init__(self, d_model):
+        super().__init__()
+        self.d_model = d_model
+
+    def call(self, x):
+
+        length = tf.shape(x)[1]
+
+        pos = tf.cast(tf.range(length), tf.float32)[:, tf.newaxis]
+        i = tf.cast(tf.range(self.d_model), tf.float32)[tf.newaxis, :]
+
+        angle_rates = 1.0 / tf.pow(
+            10000.0,
+            (2.0 * tf.floor(i / 2.0)) / float(self.d_model)
+        )
+
+        angles = pos * angle_rates
+
+        angles_sin = tf.sin(angles)
+        angles_cos = tf.cos(angles)
+
+        pos_encoding = tf.where(
+            tf.cast(tf.range(self.d_model) % 2, tf.bool),
+            angles_cos,
+            angles_sin
+        )
+        pos_encoding = tf.expand_dims(pos_encoding, axis=0)
+
+        return x + pos_encoding
+
+
 # =============================================================================
 # DIRECT MODELS
 # =============================================================================
@@ -906,11 +989,12 @@ def ceemdan_lstm(new_data,i,look_back,data_partition,cap):
     print('RMSE',rmse)
     print('MAE',mae)
 
+
 ##Proposed Method Hybrid CEEMDAN-EWT LSTM
 def proposed_method(
         datasets, look_back, data_partition, cap,
         lstm=True, gru=False, drop_extend=False, bilstm=False,
-        bigru=False, trasnformer=False, hilbert=False, save=True
+        bigru=False, transformer=False, hilbert=False, save=True
     ):
 
     # ============================================================
@@ -1174,46 +1258,74 @@ def proposed_method(
         np.random.seed(1234)
         tf.random.set_seed(1234)
 
-        model = Sequential()
+        if transformer:
+            inputs = tf.keras.Input(
+                shape=(trainX.shape[1], trainX.shape[2])
+            )
 
-        if gru:
-            model.add(
-                GRU(
+            x = tf.keras.layers.Dense(32)(inputs)
+            x = PositionalEncoding(32)(x)
+
+            attn = MultiHeadAttention(
+                embed_dim=32,
+                num_heads=4
+            )(x)
+
+            attn = Dropout(0.1)(attn)
+            x = tf.keras.layers.Add()([x, attn])
+            x = tf.keras.layers.LayerNormalization()(x)
+
+            ff = Dense(64, activation="relu")(x)
+            ff = Dense(32)(ff)
+            ff = Dropout(0.2)(ff)
+
+            x = tf.keras.layers.Add()([x, ff])
+            x = tf.keras.layers.LayerNormalization()(x)
+
+            x = tf.keras.layers.Lambda(lambda t: t[:, -1, :])(x)
+
+            outputs = Dense(1)(x)
+
+            model = tf.keras.Model(inputs=inputs, outputs=outputs)
+
+        else:
+            model = Sequential()
+
+            if gru:
+                model.add(GRU(
                     units=neuron,
                     input_shape=(trainX.shape[1], trainX.shape[2])
+                    )
                 )
-            )
 
-        elif lstm:
-            model.add(
-                LSTM(
-                    units=neuron,
-                    input_shape=(trainX.shape[1], trainX.shape[2])
+            elif lstm:
+                model.add(LSTM(
+                        units=neuron,
+                        input_shape=(trainX.shape[1], trainX.shape[2])
+                    )
                 )
-            )
 
-        elif bilstm:
-            model.add(
-                Bidirectional(
-                    LSTM(units=neuron),
-                    input_shape=(trainX.shape[1], trainX.shape[2])
+            elif bilstm:
+                model.add(
+                    Bidirectional(
+                        LSTM(units=neuron),
+                        input_shape=(trainX.shape[1], trainX.shape[2])
+                    )
                 )
-            )
 
-        elif bigru:
-            model.add(
-                Bidirectional(
-                    GRU(units=neuron),
-                    input_shape=(trainX.shape[1], trainX.shape[2])
+            elif bigru:
+                model.add(
+                    Bidirectional(
+                        GRU(units=neuron),
+                        input_shape=(trainX.shape[1], trainX.shape[2])
+                    )
                 )
-            )
 
-        # Camadas adicionais
-        if drop_extend:
-            model.add(Dense(64, activation='relu'))
-            model.add(Dropout(0.2))
+            # Camadas adicionais
+            if drop_extend:
+                model.add(Dense(64, activation='relu'))
+                model.add(Dropout(0.2))
 
-        model.add(Dense(1))
 
         model.compile(
             loss="mse",

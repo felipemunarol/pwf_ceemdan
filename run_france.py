@@ -97,8 +97,8 @@ datasets = data1['P_avg'].values.reshape(-1, 1)
 
 print('proposed_method using hilbert transform')
 proposed_method(datasets, look_back, data_partition, cap, hilbert=True)
-res = run_cv(proposed_method, datasets, dates=dates, 
-             look_back=look_back, cap=cap, hilbert=True)
+# res = run_cv(proposed_method, datasets, dates=dates, 
+#              look_back=look_back, cap=cap, hilbert=True)
 clear_memory()
 
 # print('proposed_method_stable_and_dropout_layer')
@@ -119,17 +119,18 @@ clear_memory()
 #              look_back=look_back,cap=cap, lstm=False, gru=True)
 # clear_memory()
 
+
 # print('proposed_method_with_bigru')
 # # proposed_method(datasets, look_back, data_partition, cap, lstm=False, bigru=True)
 # res = run_cv(proposed_method, datasets, dates=dates,
 #              look_back=look_back,cap=cap, lstm=False, bigru=True)
 # clear_memory()
 
-# print('proposed_method_with_transformer_keras')
-# proposed_method(datasets, look_back, data_partition, cap, lstm=False, transformer=True)
-# res = run_cv(proposed_method, datasets, dates=dates
-#              look_back=look_back, cap=cap, lstm=False, transformer=True)
-# clear_memory()
+print('proposed_method_with_transformer_keras')
+proposed_method(datasets, look_back, data_partition, cap, lstm=False, transformer=True)
+# res = run_cv(proposed_method, datasets, dates=dates,
+#              look_back=look_back,cap=cap, lstm=False, transformer=True)
+clear_memory()
 
 
 
