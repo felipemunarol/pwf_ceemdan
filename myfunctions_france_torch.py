@@ -2,45 +2,31 @@
 # coding: utf-8
 
 import os
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
-os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
-os.environ["AUTOGRAPH_VERBOSITY"] = "0"
-os.environ["PYTHONHASHSEED"] = "1234"
 
-from PyEMD import EMD, EEMD, CEEMDAN
-from scipy.signal import hilbert
-import ewtpy
-import math
-import numpy
-import gc
-import emd
-
-import warnings
-import logging
-warnings.filterwarnings("ignore", category=FutureWarning)
-logging.getLogger("tensorflow").setLevel(logging.FATAL)
-
-import tensorflow as tf
-tf.get_logger().setLevel("FATAL")
-tf.autograph.set_verbosity(0)
-tf.config.threading.set_intra_op_parallelism_threads(1)
-tf.config.threading.set_inter_op_parallelism_threads(1)
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
 import torch
 import torch.nn as nn
 
 from torch.utils.data import TensorDataset, DataLoader
 
-from seqKAN_public.seqKAN import SeqKANSeq
+torch.set_num_threads(1)
+torch.set_num_interop_threads(1)
+
+from PyEMD import EMD, EEMD, CEEMDAN
+from scipy.signal import hilbert
+import ewtpy
+import gc
+import emd
+
+from seqKAN_public_main.seqKAN import SeqKANSeq
 
 from sklearn import metrics
-from sklearn.ensemble import RandomForestRegressor
-import numpy
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-
-# import tensorflow_docs as tfdocs
 
 BASE_DIR = os.getcwd()
 
@@ -57,7 +43,6 @@ from math import sqrt
 batch_size = 64
 epochs=10
 lr=0.001
-optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=lr)
 neuron=128
 
 #convert an array of values into a dataset matrix
@@ -170,8 +155,7 @@ def run_cv(method, datasets, dates, look_back, cap, n_splits=3, **kwargs):
 
 def proposed_method(
         datasets, look_back, data_partition, cap,
-        lstm=True, gru=False, drop_extend=False, bilstm=False,
-        bigru=False, trasnformer=False, hilbert=False, save=True
+        hilbert=False, seqkan=True, save=True,
     ):
 
     # ============================================================

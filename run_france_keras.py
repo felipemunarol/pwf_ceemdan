@@ -2,25 +2,16 @@ import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 os.environ["AUTOGRAPH_VERBOSITY"] = "0"
 
-import logging
-logging.getLogger("tensorflow").setLevel(logging.FATAL)
-
-import tensorflow as tf
-tf.get_logger().setLevel(logging.FATAL)
-tf.autograph.set_verbosity(0)
-
-from tensorflow.keras import backend as K
-import gc
-
 import faulthandler
 faulthandler.enable()
 
 import pandas as pd
 
+import tensorflow as tf
+
 from myfunctions_france_keras import \
     svr_model, ann_model, rf_model,lstm_model,emd_lstm,eemd_lstm, \
-    ceemdan_lstm, proposed_method, proposed_method_with_kan, proposed_method_with_deeponet, \
-    proposed_method_with_lstm_deeponet, run_cv
+    ceemdan_lstm, proposed_method 
 
 # Limita uso de memória CPU. Impede que o código pare.
 tf.config.threading.set_intra_op_parallelism_threads(1)
@@ -69,68 +60,56 @@ datasets = data1['P_avg'].values.reshape(-1, 1)
 # print('ann_model')
 # res = ann_model(datasets,dates,look_back,data_partition,cap)
 # res = run_cv(method=ann_model, datasets=datasets, dates=dates, look_back=look_back, cap=cap, n_splits=3)
-# clear_memory()
 
 # print('rf_model')
 # res = rf_model(new_data,i,look_back,data_partition,cap)
 
 # print('lstm_model')
 # res = lstm_model(new_data,i,look_back,data_partition,cap)
-# clear_memory()
 
 # print('emd_lstm')
 # res = emd_lstm(new_data,i,look_back,data_partition,cap)
-# clear_memory()
 
 # print('eemd_lstm')
 # res = eemd_lstm(new_data,i,look_back,data_partition,cap)
-# clear_memory()
 
 # print('ceemdan_lstm')
 # res = ceemdan_lstm(new_data,i,look_back,data_partition,cap)
-# clear_memory()
 
 # print('proposed_method')
 # res = proposed_method(datasets, look_back, data_partition, cap)
 # res = run_cv(proposed_method, datasets, dates=dates, look_back=look_back, cap=cap, lstm=True)
-# clear_memory()
 
-print('proposed_method using hilbert transform')
-proposed_method(datasets, look_back, data_partition, cap, hilbert=True)
+# print('proposed_method using hilbert transform')
+# proposed_method(datasets, look_back, data_partition, cap, hilbert=True)
 # res = run_cv(proposed_method, datasets, dates=dates, 
 #              look_back=look_back, cap=cap, hilbert=True)
-clear_memory()
 
 # print('proposed_method_stable_and_dropout_layer')
 # proposed_method(datasets, look_back, data_partition, cap, drop_extend=True)
 # res = run_cv(proposed_method, datasets, dates=dates,
 #              look_back=look_back, cap=cap, drop_extend=True)
-# clear_memory()
 
 # print('proposed_method_with_bilstm')
 # # proposed_method(datasets, look_back, data_partition, cap, lstm=False, bilstm=True)
 # res = run_cv(proposed_method, datasets, dates=dates,
 #              look_back=look_back,cap=cap, lstm=False, bilstm=True)
-# clear_memory()
 
 # print('proposed_method_with_gru')
 # # proposed_method(datasets, look_back, data_partition, cap, lstm=False, gru=True)
 # res = run_cv(proposed_method, datasets, dates=dates,
 #              look_back=look_back,cap=cap, lstm=False, gru=True)
-# clear_memory()
-
 
 # print('proposed_method_with_bigru')
 # # proposed_method(datasets, look_back, data_partition, cap, lstm=False, bigru=True)
 # res = run_cv(proposed_method, datasets, dates=dates,
 #              look_back=look_back,cap=cap, lstm=False, bigru=True)
-# clear_memory()
 
-print('proposed_method_with_transformer_keras')
-proposed_method(datasets, look_back, data_partition, cap, lstm=False, transformer=True)
-# res = run_cv(proposed_method, datasets, dates=dates,
-#              look_back=look_back,cap=cap, lstm=False, transformer=True)
-clear_memory()
+# print('proposed_method_with_transformer_keras')
+# proposed_method(datasets, look_back, data_partition, cap, lstm=False, transformer=True)
+# # res = run_cv(proposed_method, datasets, dates=dates,
+# #              look_back=look_back,cap=cap, lstm=False, transformer=True)
+
 
 
 

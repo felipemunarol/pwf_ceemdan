@@ -1,15 +1,15 @@
-
 # Build:
-# docker build --no-cache -t ceemdan-model:v2 .
-
+# docker build --no-cache -t ceemdan-model:v3 -f Dockerfile_torch .
+#
 # CPU:
-# docker run --rm -it --entrypoint bash -v "${PWD}:/app" ceemdan-model:v2
-# python3 -u run_france.py
+# docker run --rm -it --entrypoint bash -v "${PWD}:/app" ceemdan-model:v4
+# python3 -u run_france_torch.py
 
-FROM python:3.10-slim
+FROM python:3.10-bookworm
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
+    SETUPTOOLS_USE_DISTUTILS=stdlib \
     OPENBLAS_NUM_THREADS=1 \
     OMP_NUM_THREADS=1 \
     MKL_NUM_THREADS=1 \
@@ -24,52 +24,90 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libstdc++6 \
     && rm -rf /var/lib/apt/lists/*
 
-# Atualização do pip
-RUN python -m pip install --no-cache-dir --upgrade pip==23.3.2
+# Pip
+RUN python -m pip install --no-cache-dir --upgrade pip==25.3
 
-# PyTorch CPU
-RUN python -m pip install --no-cache-dir \
+# PyTorch CPU, sem resolver dependências automaticamente
+RUN python -m pip install --no-cache-dir --no-deps \
     torch==2.2.2 \
     --index-url https://download.pytorch.org/whl/cpu
+    
 
 # Dependências científicas
-RUN python -m pip install --no-cache-dir \
-    numpy==1.23.5 \
-    scipy==1.10.1 \
-    pandas==1.5.3 \
-    scikit-learn==1.2.2 \
-    Pillow==10.0.1 \
-    matplotlib==3.7.3
+RUN python -m pip install --no-cache-dir numpy==1.23.5
+RUN python -m pip install --no-cache-dir scipy==1.10.1
+RUN python -m pip install --no-cache-dir pandas==1.5.3
+RUN python -m pip install --no-cache-dir scikit-learn==1.2.2
+RUN python -m pip install --no-cache-dir Pillow==10.0.1
+RUN python -m pip install --no-cache-dir --force-reinstall --no-deps matplotlib==3.8.4
 
-# CEEMDAN - PyEMD
+# SymPy e dependências auxiliares
 RUN python -m pip install --no-cache-dir \
-    EMD-signal==1.5.2
-
-# Hilbert-Huang Transform
-RUN python -m pip install --no-cache-dir \
-    emd==0.7.0
-
-# Empirical Wavelet Transform
-RUN python -m pip install --no-cache-dir \
-    ewtpy==0.2
-
-# Dependências auxiliares do projeto e do KAN
-RUN python -m pip install --no-cache-dir \
+    PyYAML==6.0.1 \
     python-dateutil==2.8.2 \
     pytz==2023.3 \
     joblib==1.4.2 \
     threadpoolctl==3.5.0 \
-    sympy==1.12 \
-    PyYAML==6.0.1 \
     tqdm==4.66.5
+
+# CEEMDAN - PyEMD
+RUN python -m pip install \
+    EMD-signal==1.5.2 \
+    pathos==0.3.2
+
+# Hilbert-Huang Transform
+RUN python -m pip install emd==0.7.0
+
+# Empirical Wavelet Transform
+RUN python -m pip install ewtpy==0.2
+
+RUN python -c "import os, sys; print('sys.prefix:', sys.prefix); print('sys.exec_prefix:', sys.exec_prefix); print('abspath:', os.path.abspath('/usr/local/lib/python3.10/site-packages')); print('commonprefix:', os.path.commonprefix(['/usr/local/lib/python3.10/site-packages', '/tmp']))"
+
+RUN echo "=== PYTHON ===" && \
+    python --version && \
+    python -m pip --version && \
+    echo "=== VARIAVEIS ===" && \
+    env | sort | grep -E '^(PIP|PYTHON|SETUPTOOLS)' || true
+
+RUN python -m pip config debug
+
+# Dependências obrigatórias do PyTorch 2.2.2
+RUN python -m pip install --no-cache-dir \
+    filelock \
+    fsspec \
+    jinja2 \
+    networkx \
+    sympy==1.14.0 \
+    typing-extensions
+
+# Verificação de dependências
+RUN pip check
 
 # Código do projeto
 COPY . .
 
-# Verificação das bibliotecas
-RUN python -c "import torch, numpy, scipy, pandas, sklearn, matplotlib, emd, ewtpy; from PyEMD import CEEMDAN; print('PyTorch:', torch.__version__); print('NumPy:', numpy.__version__); print('SciPy:', scipy.__version__); print('CUDA disponível:', torch.cuda.is_available()); print('Bibliotecas científicas OK')"
+# Verificação individual dos módulos
+RUN python -c "import inspect; print('Inspect OK:', inspect.__file__)"
+RUN python -c "import sympy; print('SymPy OK:', sympy.__version__)"
+RUN python -c "import matplotlib; print('Matplotlib OK:', matplotlib.__version__)"
+RUN python -c "import torch; print('PyTorch OK:', torch.__version__)"
+RUN python -c "import numpy, scipy; print('NumPy:', numpy.__version__, 'SciPy:', scipy.__version__)"
+RUN python -c "from PyEMD import CEEMDAN; print('PyEMD OK')"
 
-# Verificação do SEQKAN
-RUN python -c "from seqKAN_public.seqKAN import SeqKANSeq; print('SEQKAN importado com sucesso')"
+# Teste isolado do KAN
+RUN python -u -X faulthandler -c "\
+import sys; \
+sys.path.insert(0, '/app'); \
+print('Importando seqkan.kan...', flush=True); \
+import seqkan.kan; \
+print('KAN OK:', seqkan.kan.__file__, flush=True)"
 
-CMD ["python", "-u", "run_france.py"]
+# Teste isolado do SEQKAN
+RUN python -u -X faulthandler -c "\
+import sys; \
+sys.path.insert(0, '/app'); \
+print('Importando SeqKANSeq...', flush=True); \
+from seqKAN_public_main.seqKAN import SeqKANSeq; \
+print('SEQKAN OK', flush=True)"
+
+CMD ["python", "-u", "run_france_torch.py"]
