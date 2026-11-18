@@ -13,8 +13,8 @@ import torch.nn as nn
 
 from torch.utils.data import TensorDataset, DataLoader
 
-torch.set_num_threads(1)
-torch.set_num_interop_threads(1)
+torch.set_num_threads(5)
+torch.set_num_interop_threads(2)
 
 from PyEMD import EMD, EEMD, CEEMDAN
 from scipy.signal import hilbert

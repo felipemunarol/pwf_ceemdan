@@ -1,8 +1,8 @@
 # Build:
-# docker build --no-cache -t ceemdan-model:v3 -f Dockerfile_torch .
+# docker build --no-cache -t ceemdan-model:torch -f Dockerfile_torch .
 #
 # CPU:
-# docker run --rm -it --entrypoint bash -v "${PWD}:/app" ceemdan-model:v3
+# docker run --rm -it --entrypoint bash -v "${PWD}:/app" ceemdan-model:torch
 # python3 -u run_france_torch.py
 
 FROM python:3.10-bookworm

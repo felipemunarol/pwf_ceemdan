@@ -1,8 +1,8 @@
 # Build:
-#   docker build --no-cache -t ceemdan-model:v3 -f Dockerfile_keras .
+#   docker build --no-cache -t ceemdan-model:keras -f Dockerfile_keras .
 #
 # CPU:
-#   docker run --rm -it --entrypoint bash -v "${PWD}:/app" ceemdan-model:v3
+#   docker run --rm -it --entrypoint bash -v "${PWD}:/app" ceemdan-model:keras
 #   python3 -u run_france.py
 #
 # Note: this image uses a clean Python base instead of modifying the
