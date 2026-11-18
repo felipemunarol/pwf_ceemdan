@@ -10,7 +10,7 @@ import pandas as pd
 import tensorflow as tf
 
 from myfunctions_france_keras import \
-    svr_model, ann_model, rf_model,lstm_model,emd_lstm,eemd_lstm, \
+    run_cv, svr_model, ann_model, rf_model,lstm_model,emd_lstm,eemd_lstm, \
     ceemdan_lstm, proposed_method 
 
 # Limita uso de memória CPU. Impede que o código pare.
@@ -53,13 +53,13 @@ data1 = data1.reset_index(drop=True).dropna()
 dates = data1['Date']
 datasets = data1['P_avg'].values.reshape(-1, 1)
 
-# print('svr_model')
+print('svr_model')
 # res = svr_model(datasets,dates,look_back,data_partition,cap)
-# res = run_cv(method=svr_model, datasets=datasets, dates=dates, look_back=look_back, cap=cap, n_splits=3)
+res = run_cv(method=svr_model, datasets=datasets, dates=dates, look_back=look_back, cap=cap, n_splits=3)
 
-# print('ann_model')
+print('ann_model')
 # res = ann_model(datasets,dates,look_back,data_partition,cap)
-# res = run_cv(method=ann_model, datasets=datasets, dates=dates, look_back=look_back, cap=cap, n_splits=3)
+res = run_cv(method=ann_model, datasets=datasets, dates=dates, look_back=look_back, cap=cap, n_splits=3)
 
 # print('rf_model')
 # res = rf_model(new_data,i,look_back,data_partition,cap)
@@ -76,19 +76,19 @@ datasets = data1['P_avg'].values.reshape(-1, 1)
 # print('ceemdan_lstm')
 # res = ceemdan_lstm(new_data,i,look_back,data_partition,cap)
 
-# print('proposed_method')
+print('proposed_method')
 # res = proposed_method(datasets, look_back, data_partition, cap)
-# res = run_cv(proposed_method, datasets, dates=dates, look_back=look_back, cap=cap, lstm=True)
+res = run_cv(proposed_method, datasets, dates=dates, look_back=look_back, cap=cap, lstm=True)
 
 # print('proposed_method using hilbert transform')
 # proposed_method(datasets, look_back, data_partition, cap, hilbert=True)
 # res = run_cv(proposed_method, datasets, dates=dates, 
 #              look_back=look_back, cap=cap, hilbert=True)
 
-# print('proposed_method_stable_and_dropout_layer')
+print('proposed_method_stable_and_dropout_layer')
 # proposed_method(datasets, look_back, data_partition, cap, drop_extend=True)
-# res = run_cv(proposed_method, datasets, dates=dates,
-#              look_back=look_back, cap=cap, drop_extend=True)
+res = run_cv(proposed_method, datasets, dates=dates,
+             look_back=look_back, cap=cap, drop_extend=True)
 
 # print('proposed_method_with_bilstm')
 # # proposed_method(datasets, look_back, data_partition, cap, lstm=False, bilstm=True)
