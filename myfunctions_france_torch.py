@@ -350,6 +350,7 @@ def proposed_method(
     pred_train = []
 
     for idx, col in enumerate(new_ceemdan.columns):
+    # for idx, col in enumerate(new_ceemdan.columns[:1]):
 
         print(
             f"\nProcessando componente {idx + 1}",
