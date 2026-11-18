@@ -38,7 +38,7 @@ datasets = data1['P_avg'].values.reshape(-1, 1)
 print('proposed_method_with_seq_kan')
 # proposed_method(datasets, look_back, data_partition, cap)
 res = run_cv(proposed_method, datasets, dates=dates,
-             look_back=look_back,cap=cap, lstm=False, transformer=True)
+             look_back=look_back,cap=cap)
 
 
 

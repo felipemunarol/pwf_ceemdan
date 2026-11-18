@@ -58,4 +58,4 @@ RUN python3 -m pip install --no-cache-dir \
 
 COPY . .
 
-CMD ["python", "-u", "run_france.py"]
+CMD ["python", "-u", "run_france_keras.py"]
