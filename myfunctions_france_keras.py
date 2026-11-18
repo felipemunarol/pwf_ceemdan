@@ -52,7 +52,7 @@ from sklearn.svm import SVR
 from math import sqrt
 
 batch_size = 64
-epochs=10
+epochs=100
 lr=0.001
 optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=lr)
 neuron=128
