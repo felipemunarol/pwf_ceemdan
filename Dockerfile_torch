@@ -1,9 +1,12 @@
 # Build:
-# docker build --no-cache -t felipemunaro/ceemdan-model:torch -f Dockerfile_torch .
+#   docker build --no-cache -t felipemunaro/ceemdan-model:torch -f Dockerfile_torch .
 #
 # CPU:
-# docker run --rm -it --entrypoint bash -v "${PWD}:/app" felipemunaro/ceemdan-model:torch
-# python3 -u run_france_torch.py
+#   docker run --rm -it --entrypoint bash -v "${PWD}:/app" felipemunaro/ceemdan-model:torch
+#   python3 -u run_france_torch.py
+#
+# Publicar no dockerhub:
+#   docker push felipemunaro/ceemdan-model:torch
 
 FROM python:3.10-bookworm
 
