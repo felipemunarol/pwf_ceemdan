@@ -8,6 +8,10 @@ os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
+import logging
+
+logger = logging.getLogger("ceemdan_torch")
+
 import torch
 import torch.nn as nn
 
@@ -40,9 +44,6 @@ from sklearn.svm import SVR
 
 from math import sqrt
 
-import logging
-
-logger = logging.getLogger("torch")
 
 batch_size = 64
 epochs=100
@@ -118,17 +119,17 @@ def run_cv(method, datasets, dates, look_back, cap, n_splits=3, **kwargs):
     )
 
     logger.info("\n===== CV RESULTS =====")
-    logger.info("Model:", kwargs['flag'])
-    logger.info("Classic MAPE:", np.mean(classic_mape_list))
-    logger.info("MAPE:", np.mean(mape_list))
-    logger.info("RMSE:", np.mean(rmse_list))
-    logger.info("MAE :", np.mean(mae_list))
+    logger.info("Model: %s", kwargs['flag'])
+    logger.info("Classic MAPE: %s", np.mean(classic_mape_list))
+    logger.info("MAPE: %s", np.mean(mape_list))
+    logger.info("RMSE: %s", np.mean(rmse_list))
+    logger.info("MAE: %s", np.mean(mae_list))
 
     np.savetxt(f'y_test_cv.txt',
            np.asarray(y_test_all).ravel(),
            fmt='%.6f')
 
-    np.savetxt(f'y_pred_{kwargs['flag']}_cv.txt',
+    np.savetxt(f"y_pred_{kwargs['flag']}_cv.txt",
             np.asarray(y_pred_all).ravel(),
             fmt='%.6f')
 
@@ -180,7 +181,7 @@ def proposed_method(
 
     IMFs = emd_.ceemdan(s)
 
-    logger.info("Shape IMFs:", IMFs.shape, flush=True)
+    logger.info("Shape IMFs: %s", IMFs.shape)
 
     full_imf = pd.DataFrame(IMFs)
     ceemdan1 = full_imf.T
@@ -206,11 +207,7 @@ def proposed_method(
         axis=1
     )
 
-    logger.info(
-        "Componentes para previsão:",
-        new_ceemdan.shape[1],
-        flush=True
-    )
+    logger.info("Componentes para previsão: %s", new_ceemdan.shape[1])
 
     # ============================================================
     # 3. PREPARAÇÃO DAS ENTRADAS
@@ -222,7 +219,7 @@ def proposed_method(
 
     if hilbert:
 
-        logger.info("Aplicando HHT...", flush=True)
+        logger.info("Aplicando HHT...")
 
         sample_rate = 1.0  # Verificar conforme a frequência dos dados
 
@@ -257,8 +254,7 @@ def proposed_method(
 
                 logger.info(
                     f"Componente {i + 1}: "
-                    "HHT não aplicável. Utilizando componente original.",
-                    flush=True
+                    "HHT não aplicável. Utilizando componente original."
                 )
 
                 hht_component = new_ceemdan.iloc[:, i].to_numpy(
@@ -303,8 +299,7 @@ def proposed_method(
     else:
 
         logger.info(
-            "Utilizando componentes originais como entradas...",
-            flush=True
+            "Utilizando componentes originais como entradas..."
         )
 
         input_components = [
@@ -323,7 +318,7 @@ def proposed_method(
         "cuda" if torch.cuda.is_available() else "cpu"
     )
 
-    logger.info(f"Dispositivo utilizado: {device}", flush=True)
+    logger.info(f"Dispositivo utilizado: {device}")
 
     # Parâmetros do KAN original utilizado pelo SeqKAN
     kan_params = {
@@ -346,8 +341,7 @@ def proposed_method(
     # ============================================================
 
     logger.info(
-        "Início do treinamento do modelo SeqKAN",
-        flush=True
+        "Início do treinamento do modelo SeqKAN"
     )
 
     pred_test = []
@@ -357,8 +351,7 @@ def proposed_method(
     # for idx, col in enumerate(new_ceemdan.columns[:1]):
 
         logger.info(
-            f"\nProcessando componente {idx + 1}",
-            flush=True
+            f"\nProcessando componente {idx + 1}"
         )
 
         # --------------------------------------------------------
@@ -471,8 +464,7 @@ def proposed_method(
         logger.info(
             f"trainX: {trainX.shape} | "
             f"testX: {testX.shape} | "
-            f"Features: {n_features}",
-            flush=True
+            f"Features: {n_features}"
         )
 
         # --------------------------------------------------------
@@ -683,10 +675,10 @@ def proposed_method(
         a
     )
 
-    logger.info('MAPE', mape)
-    logger.info('Classic MAPE', classic_mape)
-    logger.info('RMSE', rmse)
-    logger.info('MAE', mae)
+    logger.info('MAPE: %s', mape)
+    logger.info('Classic MAPE: %s', classic_mape)
+    logger.info('RMSE: %s', rmse)
+    logger.info('MAE: %s', mae)
 
     return y_test.flatten(), a.flatten()
 
@@ -769,10 +761,10 @@ def proposed_method_with_deeponet(
 
     IMFs = emd.ceemdan(s)
 
-    logger.info("Shape IMFs:", IMFs.shape, flush=True)
+    logger.info("Shape IMFs: %s", IMFs.shape)
 
     full_imf = pd.DataFrame(IMFs)
-    logger.info("Quantidade IMFs", full_imf.shape[0], flush=True)
+    logger.info("Quantidade IMFs: %s", full_imf.shape[0])
 
     ceemdan1=full_imf.T
     
@@ -882,9 +874,9 @@ def proposed_method_with_deeponet(
     rmse = sqrt(mean_squared_error(y_test, a))
     mae  = metrics.mean_absolute_error(y_test, a)
 
-    logger.info("MAPE:", mape)
-    logger.info("RMSE:", rmse)
-    logger.info("MAE:", mae)
+    logger.info('MAPE: %s', mape)
+    logger.info('RMSE: %s', rmse)
+    logger.info('MAE: %s', mae)
 
     return y_test.values.flatten(), a.values.flatten()
 
@@ -976,10 +968,10 @@ def proposed_method_with_lstm_deeponet(
 
     IMFs = emd.ceemdan(s)
 
-    logger.info("Shape IMFs:", IMFs.shape, flush=True)
+    logger.info("Shape IMFs: %s", IMFs.shape)
 
     full_imf = pd.DataFrame(IMFs)
-    logger.info("Quantidade IMFs", full_imf.shape[0], flush=True)
+    logger.info("Quantidade IMFs: %s", full_imf.shape[0])
 
     ceemdan1=full_imf.T
     
@@ -1090,9 +1082,9 @@ def proposed_method_with_lstm_deeponet(
     rmse = sqrt(mean_squared_error(y_test, a))
     mae  = metrics.mean_absolute_error(y_test, a)
 
-    logger.info("MAPE:", mape)
-    logger.info("RMSE:", rmse)
-    logger.info("MAE:", mae)
+    logger.info('MAPE: %s', mape)
+    logger.info('RMSE: %s', rmse)
+    logger.info('MAE: %s', mae)
 
     return y_test.values.flatten(), a.values.flatten()
 

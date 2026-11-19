@@ -7,7 +7,7 @@ faulthandler.enable()
 
 from logger_config import configurar_logger
 
-logger = configurar_logger("torch")
+logger = configurar_logger("ceemdan_torch")
 
 import pandas as pd
 

@@ -7,6 +7,10 @@ os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 os.environ["AUTOGRAPH_VERBOSITY"] = "0"
 os.environ["PYTHONHASHSEED"] = "1234"
 
+import logging
+
+logger = logging.getLogger("ceemdan_keras")
+
 from PyEMD import EMD, EEMD, CEEMDAN
 from scipy.signal import hilbert
 import ewtpy
@@ -51,9 +55,6 @@ from sklearn.svm import SVR
 
 from math import sqrt
 
-import logging
-
-logger = logging.getLogger("keras")
 
 batch_size = 64
 epochs=100
@@ -130,17 +131,17 @@ def run_cv(method, datasets, dates, look_back, cap, n_splits=3, **kwargs):
     )
 
     logger.info("\n===== CV RESULTS =====")
-    logger.info("Model:", kwargs['flag'])
-    logger.info("Classic MAPE:", np.mean(classic_mape_list))
-    logger.info("MAPE:", np.mean(mape_list))
-    logger.info("RMSE:", np.mean(rmse_list))
-    logger.info("MAE :", np.mean(mae_list))
+    logger.info(f"Model: {kwargs['flag']}")
+    logger.info(f"Classic MAPE: {np.mean(classic_mape_list)}")
+    logger.info(f"MAPE: {np.mean(mape_list)}")
+    logger.info(f"RMSE: {np.mean(rmse_list)}")
+    logger.info(f"MAE: {np.mean(mae_list)}")
 
     np.savetxt(f'predictions/y_test_cv.txt',
            np.asarray(y_test_all).ravel(),
            fmt='%.6f')
 
-    np.savetxt(f'predictions/y_pred_{kwargs['flag']}_cv.txt',
+    np.savetxt(f"predictions/y_pred_{kwargs['flag']}_cv.txt",
             np.asarray(y_pred_all).ravel(),
             fmt='%.6f')
 
@@ -443,10 +444,10 @@ def rf_model(new_data,i,look_back,data_partition,cap):
     rmse= sqrt(mean_squared_error(y_test,y_pred_test1_rf))
     mae=metrics.mean_absolute_error(y_test,y_pred_test1_rf)
 
-    logger.info('MAPE',mape)
-    logger.info('Classic MAPE', classic_mape)
-    logger.info('RMSE',rmse)
-    logger.info('MAE',mae)
+    logger.info("MAPE: %s", mape)
+    logger.info("Classic MAPE: %s", classic_mape)
+    logger.info("RMSE: %s", rmse)
+    logger.info("MAE: %s", mae)
 
 
 ##LSTM
@@ -523,10 +524,10 @@ def lstm_model(new_data,i,look_back,data_partition,cap):
     mae=metrics.mean_absolute_error(y_test,y_pred_test1)
 
     
-    logger.info('MAPE',mape)
-    logger.info('Classic MAPE', classic_mape)
-    logger.info('RMSE',rmse)
-    logger.info('MAE',mae)
+    logger.info("MAPE: %s", mape)
+    logger.info("Classic MAPE: %s", classic_mape)
+    logger.info("RMSE: %s", rmse)
+    logger.info("MAE: %s", mae)
 
 
 # In[24]:
@@ -679,10 +680,10 @@ def emd_lstm(new_data,i,look_back,data_partition,cap):
     mae=metrics.mean_absolute_error(y_test,a)
 
     
-    logger.info('MAPE',mape)
-    logger.info('Classic MAPE', classic_mape)
-    logger.info('RMSE',rmse)
-    logger.info('MAE',mae)
+    logger.info("MAPE: %s", mape)
+    logger.info("Classic MAPE: %s", classic_mape)
+    logger.info("RMSE: %s", rmse)
+    logger.info("MAE: %s", mae)
 
 
 # In[25]:
@@ -833,10 +834,10 @@ def eemd_lstm(new_data,i,look_back,data_partition,cap):
     mae=metrics.mean_absolute_error(y_test,a)
 
     
-    logger.info('MAPE',mape)
-    logger.info('Classic MAPE', classic_mape)
-    logger.info('RMSE',rmse)
-    logger.info('MAE',mae)
+    logger.info("MAPE: %s", mape)
+    logger.info("Classic MAPE: %s", classic_mape)
+    logger.info("RMSE: %s", rmse)
+    logger.info("MAE: %s", mae)
 
 
 ##HYBRID CEEMDAN LSTM
@@ -988,10 +989,10 @@ def ceemdan_lstm(new_data,i,look_back,data_partition,cap):
     mae=metrics.mean_absolute_error(y_test,a)
 
     
-    logger.info('MAPE',mape)
-    logger.info('Classic MAPE', classic_mape)
-    logger.info('RMSE',rmse)
-    logger.info('MAE',mae)
+    logger.info("MAPE: %s", mape)
+    logger.info("Classic MAPE: %s", classic_mape)
+    logger.info("RMSE: %s", rmse)
+    logger.info("MAE: %s", mae)
 
 
 ##Proposed Method Hybrid CEEMDAN-EWT LSTM
@@ -1019,7 +1020,7 @@ def proposed_method(
 
     IMFs = emd_.ceemdan(s)
 
-    logger.info("Shape IMFs:", IMFs.shape, flush=True)
+    logger.info("Shape IMFs: %s", IMFs.shape)
 
     full_imf = pd.DataFrame(IMFs)
     ceemdan1 = full_imf.T
@@ -1045,21 +1046,20 @@ def proposed_method(
         axis=1
     )
 
-    logger.info("Componentes para previsão:", new_ceemdan.shape[1])
+    logger.info("Componentes para previsão: %s", new_ceemdan.shape[1])
 
     for i in range(new_ceemdan.shape[1]):
 
         component = new_ceemdan.iloc[:, i].to_numpy()
 
-        logger.info(
-            f"Componente {i + 1}: "
-            f"mínimo={np.min(component):.8f}, "
-            f"máximo={np.max(component):.8f}, "
-            f"desvio={np.std(component):.8f}, "
-            f"NaN={np.isnan(component).sum()}, "
-            f"Inf={np.isinf(component).sum()}",
-            flush=True
-        )
+    logger.info(
+        f"Componente {i + 1}: "
+        f"mínimo={np.min(component):.8f}, "
+        f"máximo={np.max(component):.8f}, "
+        f"desvio={np.std(component):.8f}, "
+        f"NaN={np.isnan(component).sum()}, "
+        f"Inf={np.isinf(component).sum()}"
+    )
 
     # ============================================================
     # 3. PREPARAÇÃO DAS ENTRADAS
@@ -1069,7 +1069,7 @@ def proposed_method(
     # Também poderiam ser utilizadas apenas a HHT das componente de 1 a 9.
     if hilbert:
 
-        logger.info("Aplicando HHT...", flush=True)
+        logger.info("Aplicando HHT...")
 
         sample_rate = 1.0    # Verificar
 
@@ -1101,7 +1101,6 @@ def proposed_method(
                 logger.info(
                     f"Componente {i + 1}: "
                     "HHT não aplicável. Utilizando componente original.",
-                    flush=True
                 )
 
                 hht_component = new_ceemdan.iloc[:, i].to_numpy(
@@ -1145,7 +1144,7 @@ def proposed_method(
 
     else:
 
-        logger.info("Utilizando componentes originais como entradas...", flush=True)
+        logger.info("Utilizando componentes originais como entradas...")
 
         input_components = [
             new_ceemdan.iloc[:, i].to_numpy(
@@ -1157,14 +1156,14 @@ def proposed_method(
     # ============================================================
     # 4. PREVISÃO INDIVIDUAL DE CADA COMPONENTE
     # ============================================================
-    logger.info("Inicio do treinamento do modelo", flush=True)
+    logger.info("Inicio do treinamento do modelo")
 
     pred_test = []
     pred_train = []
 
     for idx, col in enumerate(new_ceemdan.columns):
 
-        logger.info(f"\nProcessando componente {idx + 1}", flush=True)
+        logger.info(f"\nProcessando componente {idx + 1}")
 
         # Entrada: HHT ou componente original
         features = np.asarray(
@@ -1713,668 +1712,6 @@ def proposed_method(
 #         pass
 
 #     return y_test.flatten(), y_pred.flatten(), dates.astype(str)
-
-
-#https://emd.readthedocs.io/en/stable/index.html
-
-# Hybrid CEEMDAN-EWT KAN
-def proposed_method_with_kan(
-    datasets, look_back, data_partition, cap,
-    epochs=epochs, batch_size=32, Q=4
-):
-    import torch
-    from torch.utils.data import DataLoader
-    import torch
-    import torch.nn as nn
-
-    class KANLayer(nn.Module):
-        """KAN layer: soma de funções univariadas aprendidas"""
-        def __init__(self, in_features, out_features, Q=4):
-            super().__init__()
-            self.Q = Q
-            self.in_features = in_features
-            self.out_features = out_features
-
-            # Cada função é uma MLP simples
-            self.functions = nn.ModuleList([
-                nn.Sequential(
-                    nn.Linear(in_features, out_features),
-                    nn.Tanh()
-                )
-                for _ in range(Q)
-            ])
-
-        def forward(self, x):
-            # x: (batch, in_features)
-            out = 0.0
-            for f in self.functions:
-                out = out + f(x)
-            return out
-
-    class TKANModel(nn.Module):
-        def __init__(self, input_size=1, hidden_size=32, output_size=1, Q=4):
-            super().__init__()
-
-            self.hidden_size = hidden_size
-
-            # KAN aplicado a cada passo temporal
-            self.kan = KANLayer(
-                in_features=input_size,
-                out_features=hidden_size,
-                Q=Q
-            )
-
-            # Agregação temporal
-            self.temporal_pool = nn.AdaptiveAvgPool1d(1)
-
-            # Saída
-            self.fc_out = nn.Linear(hidden_size, output_size)
-
-        def forward(self, x):
-            """
-            x: (batch, window, input_size)
-            """
-            B, T, D = x.shape
-
-            # Aplica KAN passo a passo
-            x = x.view(B * T, D)
-            h = self.kan(x)              # (B*T, hidden)
-            h = h.view(B, T, -1)         # (B, T, hidden)
-
-            # Pool temporal
-            h = h.permute(0, 2, 1)       # (B, hidden, T)
-            h = self.temporal_pool(h)    # (B, hidden, 1)
-            h = h.squeeze(-1)            # (B, hidden)
-
-            # Saída
-            y = self.fc_out(h)           # (B, output)
-            return y
-
-
-        # Prepara o sinal para o CEEMDAN
-    s = np.ascontiguousarray(
-        np.asarray(datasets, dtype=np.float64).reshape(-1)
-    )
-
-    emd = CEEMDAN(
-        trials=10,
-        epsilon=0.05,
-        parallel=False
-    )
-
-    emd.noise_seed(12345)
-
-    IMFs = emd.ceemdan(s)
-
-    logger.info("Shape IMFs:", IMFs.shape, flush=True)
-
-    full_imf = pd.DataFrame(IMFs)
-    logger.info("Quantidade IMFs", full_imf.shape[0], flush=True)
-
-    ceemdan1=full_imf.T
-    
-    imf1=ceemdan1.iloc[:,0]
-
-    ewt,  mfb ,boundaries = ewtpy.EWT1D(imf1, N =3)
-
-    df_ewt=pd.DataFrame(ewt)
-
-    df_ewt.drop(df_ewt.columns[2],axis=1,inplace=True)
-    denoised=df_ewt.sum(axis = 1, skipna = True) 
-    ceemdan_without_imf1=ceemdan1.iloc[:,1:]
-    new_ceemdan=pd.concat([denoised,ceemdan_without_imf1],axis=1)    
-    
-    pred_test=[]
-    test_ori=[]
-    pred_train=[]
-    train_ori=[]
-
-    for col in new_ceemdan:
-
-        series = new_ceemdan[col].values.reshape(-1, 1)
-
-        # Dataset janela temporal
-        X, y = create_dataset(series, look_back)
-
-        split = int(len(X) * data_partition)
-        X_train, X_test = X[:split], X[split:]
-        y_train, y_test = y[:split], y[split:]
-
-        # Torch tensors
-        X_train = torch.tensor(X_train, dtype=torch.float32).unsqueeze(-1)
-        X_test  = torch.tensor(X_test,  dtype=torch.float32).unsqueeze(-1)
-
-        y_train = torch.tensor(y_train, dtype=torch.float32).view(-1, 1)
-        y_test_torch = torch.tensor(y_test, dtype=torch.float32).view(-1, 1)
-
-        train_ds = torch.utils.data.TensorDataset(X_train, y_train)
-        test_ds  = torch.utils.data.TensorDataset(X_test, y_test_torch)
-
-        train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=False)
-        test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
-
-        def train_model(model, train_loader, val_loader=None, epochs=50, lr=1e-3, device=None):
-            if device is None:
-                device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-            model.to(device)
-            optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-            criterion = nn.MSELoss()
-
-            train_losses = []
-            val_losses = []
-
-            for epoch in range(epochs):
-                model.train()
-                epoch_loss = 0.0
-
-                for xb, yb in train_loader:
-                    xb = xb.to(device).float()
-                    yb = yb.to(device).float()
-
-                    optimizer.zero_grad()
-                    pred = model(xb)
-                    loss = criterion(pred, yb)
-                    loss.backward()
-                    optimizer.step()
-
-                    epoch_loss += loss.item()
-
-                epoch_loss /= len(train_loader)
-                train_losses.append(epoch_loss)
-
-                # Validação (opcional)
-                if val_loader is not None:
-                    model.eval()
-                    val_loss = 0.0
-                    with torch.no_grad():
-                        for xb, yb in val_loader:
-                            xb = xb.to(device).float()
-                            yb = yb.to(device).float()
-                            pred = model(xb)
-                            loss = criterion(pred, yb)
-                            val_loss += loss.item()
-
-                    val_loss /= len(val_loader)
-                    val_losses.append(val_loss)
-
-                    logger.info(
-                        f"Epoch [{epoch+1}/{epochs}] "
-                        f"Train MSE: {epoch_loss:.6f} | Val MSE: {val_loss:.6f}"
-                    )
-                else:
-                    logger.info(
-                        f"Epoch [{epoch+1}/{epochs}] "
-                        f"Train MSE: {epoch_loss:.6f}"
-                    )
-
-            return train_losses, val_losses
-
-
-        # -----------------------------
-        # TKAN REAL (o seu)
-        # -----------------------------
-        model = TKANModel(
-            input_size=1,
-            hidden_size=32,
-            output_size=1,
-            Q=Q
-        )
-
-        train_model(
-            model,
-            train_loader,
-            val_loader=None,
-            epochs=epochs
-        )
-
-        # -----------------------------
-        # Previsão
-        # -----------------------------
-        model.eval()
-        preds = []
-
-        with torch.no_grad():
-            for xb, _ in test_loader:
-                pred = model(xb)
-                preds.append(pred.cpu().numpy())
-
-        preds = np.concatenate(preds).reshape(-1, 1)
-        pred_test.append(preds)
-
-    # -----------------------------
-    # Reconstrução do sinal
-    # -----------------------------
-    result_pred_test = pd.DataFrame.from_records(pred_test)
-    a = result_pred_test.sum(axis=0).values.reshape(-1, 1)
-
-    # -----------------------------
-    # Métricas
-    # -----------------------------
-    mape = np.mean(np.abs((y_test - a)) / cap) * 100
-    rmse = sqrt(mean_squared_error(y_test, a))
-    mae = metrics.mean_absolute_error(y_test, a)
-
-    logger.info("MAPE:", mape)
-    logger.info("RMSE:", rmse)
-    logger.info("MAE:", mae)
-
-    # Save the real and predict values
-    np.savetxt(os.path.join(BASE_DIR, 'y_test.txt'), y_test.values.flatten(), fmt='%.6f')
-    np.savetxt(os.path.join(BASE_DIR, 'y_pred_kan.txt'), a.values.flatten(), fmt='%.6f')
-
-    # dates = data1['Month'].iloc[-len(y_test):]
-    # dates = pd.to_datetime(dates)
-
-    # np.savetxt(os.path.join(BASE_DIR, 'dates.txt'), dates.astype(str), fmt='%s')
-
-    return  y_test.values.flatten(), a.values.flatten(), dates.astype(str).values
-
-
-def proposed_method_with_deeponet(
-    datasets, look_back, data_partition, cap,
-    epochs=50, batch_size=32, hidden_dim=64
-):
-    import torch
-    from torch.utils.data import DataLoader
-
-    class DeepONetDataset(torch.utils.data.Dataset):
-        def __init__(self, X_branch, X_trunk, y):
-            self.Xb = torch.tensor(X_branch, dtype=torch.float32)
-            self.Xt = torch.tensor(X_trunk, dtype=torch.float32)
-            self.y  = torch.tensor(y, dtype=torch.float32).reshape(-1, 1)
-
-        def __len__(self):
-            return len(self.y)
-
-        def __getitem__(self, idx):
-            return self.Xb[idx], self.Xt[idx], self.y[idx]
-    
-    import torch
-    import torch.nn as nn
-
-    class BranchNet(nn.Module):
-        def __init__(self, input_dim, hidden_dim):
-            super().__init__()
-            self.net = nn.Sequential(
-                nn.Linear(input_dim, hidden_dim),
-                nn.ReLU(),
-                nn.Linear(hidden_dim, hidden_dim)
-            )
-
-        def forward(self, x):
-            return self.net(x)
-
-
-    class TrunkNet(nn.Module):
-        def __init__(self, input_dim, hidden_dim):
-            super().__init__()
-            self.net = nn.Sequential(
-                nn.Linear(input_dim, hidden_dim),
-                nn.ReLU(),
-                nn.Linear(hidden_dim, hidden_dim)
-            )
-
-        def forward(self, x):
-            return self.net(x)
-
-
-    class DeepONet(nn.Module):
-        def __init__(self, branch_input_dim, trunk_input_dim, hidden_dim, output_dim=1):
-            super().__init__()
-            self.branch = BranchNet(branch_input_dim, hidden_dim)
-            self.trunk  = TrunkNet(trunk_input_dim, hidden_dim)
-            self.fc_out = nn.Linear(hidden_dim, output_dim)
-
-        def forward(self, xb, xt):
-            # xb: (batch, look_back)
-            # xt: (batch, trunk_dim)
-            b = self.branch(xb)
-            t = self.trunk(xt)
-            y = self.fc_out(b * t)
-            return y
-
-    # Prepara o sinal para o CEEMDAN
-    s = np.ascontiguousarray(
-        np.asarray(datasets, dtype=np.float64).reshape(-1)
-    )
-
-    emd = CEEMDAN(
-        trials=10,
-        epsilon=0.05,
-        parallel=False
-    )
-
-    emd.noise_seed(12345)
-
-    IMFs = emd.ceemdan(s)
-
-    logger.info("Shape IMFs:", IMFs.shape, flush=True)
-
-    full_imf = pd.DataFrame(IMFs)
-    logger.info("Quantidade IMFs", full_imf.shape[0], flush=True)
-
-    ceemdan1=full_imf.T
-    
-    imf1=ceemdan1.iloc[:,0]
-
-    ewt,  mfb ,boundaries = ewtpy.EWT1D(imf1, N =3)
-
-    df_ewt=pd.DataFrame(ewt)
-
-    df_ewt.drop(df_ewt.columns[2],axis=1,inplace=True)
-    denoised=df_ewt.sum(axis = 1, skipna = True) 
-    ceemdan_without_imf1=ceemdan1.iloc[:,1:]
-    new_ceemdan=pd.concat([denoised,ceemdan_without_imf1],axis=1)    
-    
-    pred_test=[]
-    test_ori=[]
-    pred_train=[]
-    train_ori=[]
-
-    # -----------------------------
-    # Loop por IMF
-    # -----------------------------
-    for col in new_ceemdan.columns:
-
-        series = new_ceemdan[col].values.reshape(-1, 1)
-        X, y = create_dataset(series, look_back)
-
-        split = int(len(X) * data_partition)
-        X_train, X_test = X[:split], X[split:]
-        y_train, y_test = y[:split], y[split:]
-
-        # Branch = janela temporal
-        Xb_train = X_train
-        Xb_test  = X_test
-
-        # Trunk = tempo normalizado
-        Xt_train = np.linspace(0, 1, len(Xb_train)).reshape(-1, 1)
-        Xt_test  = np.linspace(0, 1, len(Xb_test)).reshape(-1, 1)
-
-        train_ds = DeepONetDataset(Xb_train, Xt_train, y_train)
-        test_ds  = DeepONetDataset(Xb_test, Xt_test, y_test)
-
-        train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=False)
-        test_loader  = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
-
-        # -----------------------------
-        # Modelo DeepONet
-        # -----------------------------
-        model = DeepONet(
-            branch_input_dim=look_back,
-            trunk_input_dim=1,
-            hidden_dim=hidden_dim,
-            output_dim=1
-        )
-
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model.to(device)
-
-        criterion = nn.MSELoss()
-
-        # -----------------------------
-        # Treinamento
-        # -----------------------------
-        for epoch in range(epochs):
-            model.train()
-            loss_epoch = 0.0
-
-            for xb, xt, yb in train_loader:
-                xb, xt, yb = xb.to(device), xt.to(device), yb.to(device)
-
-                optimizer.zero_grad()
-                pred = model(xb, xt)
-                loss = criterion(pred, yb)
-                loss.backward()
-                optimizer.step()
-
-                loss_epoch += loss.item()
-
-            if (epoch + 1) % 10 == 0:
-                logger.info(f"Epoch {epoch+1}/{epochs} - MSE: {loss_epoch/len(train_loader):.6f}")
-
-        # -----------------------------
-        # Previsão
-        # -----------------------------
-        model.eval()
-        preds = []
-
-        with torch.no_grad():
-            for xb, xt, _ in test_loader:
-                xb, xt = xb.to(device), xt.to(device)
-                preds.append(model(xb, xt).cpu().numpy())
-
-        pred_test.append(np.concatenate(preds).reshape(-1, 1))
-
-    # -----------------------------
-    # Reconstrução do sinal
-    # -----------------------------
-    a = np.sum(np.array(pred_test), axis=0)
-
-    # dates = data1['Month'].iloc[-len(y_test):]
-    # dates = pd.to_datetime(dates)
-
-    # -----------------------------
-    # Métricas
-    # -----------------------------
-    mape = np.mean(np.abs(y_test - a) / cap) * 100
-    rmse = sqrt(mean_squared_error(y_test, a))
-    mae  = metrics.mean_absolute_error(y_test, a)
-
-    logger.info("MAPE:", mape)
-    logger.info("RMSE:", rmse)
-    logger.info("MAE:", mae)
-
-    return y_test.values.flatten(), a.values.flatten()
-
-
-def proposed_method_with_lstm_deeponet(
-    datasets, look_back, data_partition, cap,
-    epochs=50, batch_size=32, hidden_dim=64
-):
-    import torch
-    import torch.nn as nn
-    from torch.utils.data import DataLoader, Dataset
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    # ==========================================================
-    # Dataset
-    # ==========================================================
-    class HybridDataset(Dataset):
-        def __init__(self, X_seq, X_time, y):
-            self.Xs = torch.tensor(X_seq, dtype=torch.float32)
-            self.Xt = torch.tensor(X_time, dtype=torch.float32)
-            self.y  = torch.tensor(y, dtype=torch.float32).reshape(-1, 1)
-
-        def __len__(self):
-            return len(self.y)
-
-        def __getitem__(self, idx):
-            return self.Xs[idx], self.Xt[idx], self.y[idx]
-
-    # ==========================================================
-    # Branch: LSTM
-    # ==========================================================
-    class LSTMBranch(nn.Module):
-        def __init__(self, input_dim=1, hidden_dim=64):
-            super().__init__()
-            self.lstm = nn.LSTM(
-                input_dim,
-                hidden_dim,
-                batch_first=True
-            )
-
-        def forward(self, x):
-            # x: (batch, look_back, 1)
-            _, (h_n, _) = self.lstm(x)
-            return h_n[-1]  # (batch, hidden_dim)
-
-    # ==========================================================
-    # Trunk
-    # ==========================================================
-    class TrunkNet(nn.Module):
-        def __init__(self, input_dim, hidden_dim):
-            super().__init__()
-            self.net = nn.Sequential(
-                nn.Linear(input_dim, hidden_dim),
-                nn.ReLU(),
-                nn.Linear(hidden_dim, hidden_dim)
-            )
-
-        def forward(self, x):
-            return self.net(x)
-
-    # ==========================================================
-    # LSTM–DeepONet
-    # ==========================================================
-    class LSTMDeepONet(nn.Module):
-        def __init__(self, trunk_dim, hidden_dim):
-            super().__init__()
-            self.branch = LSTMBranch(1, hidden_dim)
-            self.trunk  = TrunkNet(trunk_dim, hidden_dim)
-
-        def forward(self, x_seq, x_time):
-            b = self.branch(x_seq)
-            t = self.trunk(x_time)
-            y = torch.sum(b * t, dim=1, keepdim=True)
-            return y
-
-        # Prepara o sinal para o CEEMDAN
-    s = np.ascontiguousarray(
-        np.asarray(datasets, dtype=np.float64).reshape(-1)
-    )
-
-    emd = CEEMDAN(
-        trials=10,
-        epsilon=0.05,
-        parallel=False
-    )
-
-    emd.noise_seed(12345)
-
-    IMFs = emd.ceemdan(s)
-
-    logger.info("Shape IMFs:", IMFs.shape, flush=True)
-
-    full_imf = pd.DataFrame(IMFs)
-    logger.info("Quantidade IMFs", full_imf.shape[0], flush=True)
-
-    ceemdan1=full_imf.T
-    
-    imf1=ceemdan1.iloc[:,0]
-
-    ewt,  mfb ,boundaries = ewtpy.EWT1D(imf1, N =3)
-
-    df_ewt=pd.DataFrame(ewt)
-
-    df_ewt.drop(df_ewt.columns[2],axis=1,inplace=True)
-    denoised=df_ewt.sum(axis = 1, skipna = True) 
-    ceemdan_without_imf1=ceemdan1.iloc[:,1:]
-    new_ceemdan=pd.concat([denoised,ceemdan_without_imf1],axis=1)    
-    
-    pred_test=[]
-    test_ori=[]
-    pred_train=[]
-    train_ori=[]
-
-    # ==========================================================
-    # Loop por IMF
-    # ==========================================================
-    for col in new_ceemdan.columns:
-
-        series = new_ceemdan[col].values.reshape(-1, 1)
-        X, y = create_dataset(series, look_back)
-
-        split = int(len(X) * data_partition)
-        X_train, X_test = X[:split], X[split:]
-        y_train, y_test = y[:split], y[split:]
-
-        # ---- Branch input (LSTM)
-        Xb_train = X_train.reshape(-1, look_back, 1)
-        Xb_test  = X_test.reshape(-1, look_back, 1)
-
-        # ---- Trunk input (tempo enriquecido)
-        t_train = np.linspace(0, 1, len(Xb_train)).reshape(-1, 1)
-        t_test  = np.linspace(0, 1, len(Xb_test)).reshape(-1, 1)
-
-        Xt_train = np.hstack([
-            t_train,
-            np.sin(2 * np.pi * t_train),
-            np.cos(2 * np.pi * t_train)
-        ])
-
-        Xt_test = np.hstack([
-            t_test,
-            np.sin(2 * np.pi * t_test),
-            np.cos(2 * np.pi * t_test)
-        ])
-
-        train_ds = HybridDataset(Xb_train, Xt_train, y_train)
-        test_ds  = HybridDataset(Xb_test, Xt_test, y_test)
-
-        train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
-        test_loader  = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
-
-        model = LSTMDeepONet(trunk_dim=3, hidden_dim=hidden_dim).to(device)
-
-        criterion = nn.MSELoss()
-
-        # ==========================================================
-        # Treinamento
-        # ==========================================================
-        for epoch in range(epochs):
-            model.train()
-            loss_epoch = 0.0
-
-            for xb, xt, yb in train_loader:
-                xb, xt, yb = xb.to(device), xt.to(device), yb.to(device)
-
-                optimizer.zero_grad()
-                pred = model(xb, xt)
-                loss = criterion(pred, yb)
-                loss.backward()
-                optimizer.step()
-
-                loss_epoch += loss.item()
-
-            if (epoch + 1) % 10 == 0:
-                logger.info(f"IMF {col} | Epoch {epoch+1}/{epochs} | MSE {loss_epoch/len(train_loader):.6f}")
-
-        # ==========================================================
-        # Previsão
-        # ==========================================================
-        model.eval()
-        preds = []
-
-        with torch.no_grad():
-            for xb, xt, _ in test_loader:
-                xb, xt = xb.to(device), xt.to(device)
-                preds.append(model(xb, xt).cpu().numpy())
-
-        pred_test.append(np.concatenate(preds).reshape(-1, 1))
-
-    # ==========================================================
-    # Reconstrução do sinal
-    # ==========================================================
-    a = np.sum(np.array(pred_test), axis=0)
-    
-    # dates = data1['Month'].iloc[-len(y_test):]
-    # dates = pd.to_datetime(dates)
-
-    # ==========================================================
-    # Métricas
-    # ==========================================================
-    mape = np.mean(np.abs(y_test - a) / cap) * 100
-    rmse = sqrt(mean_squared_error(y_test, a))
-    mae  = metrics.mean_absolute_error(y_test, a)
-
-    logger.info("MAPE:", mape)
-    logger.info("RMSE:", rmse)
-    logger.info("MAE:", mae)
-
-    return y_test.values.flatten(), a.values.flatten()
 
 
 if __name__=='__main__':

@@ -7,14 +7,14 @@ faulthandler.enable()
 
 from logger_config import configurar_logger
 
-logger = configurar_logger("keras")
+logger = configurar_logger("ceemdan_keras")
 
 import pandas as pd
 
 import tensorflow as tf
 
 from myfunctions_france_keras import \
-    run_cv, svr_model, ann_model, rf_model,lstm_model,emd_lstm,eemd_lstm, \
+    run_cv, svr_model, ann_model, rf_model, lstm_model, emd_lstm, eemd_lstm, \
     ceemdan_lstm, proposed_method 
 
 # Limita uso de memória CPU. Impede que o código pare.
@@ -23,7 +23,7 @@ tf.config.threading.set_inter_op_parallelism_threads(1)
 
 from tensorflow.python.client import device_lib
 
-print("GPUs:", [x.name for x in device_lib.list_local_devices() if x.device_type == "GPU"])
+logger.info(f"GPUs: {[x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']}")
 
 gpus = tf.config.list_physical_devices('GPU')
 if gpus:
@@ -53,59 +53,59 @@ data1 = data1.reset_index(drop=True).dropna()
 dates = data1['Date']
 datasets = data1['P_avg'].values.reshape(-1, 1)
 
-print('svr_model')
+logger.info('svr_model')
 # res = svr_model(datasets,dates,look_back,data_partition,cap)
 res = run_cv(method=svr_model, datasets=datasets, dates=dates, look_back=look_back, cap=cap, n_splits=3, flag='svr')
 
-print('ann_model')
+logger.info('ann_model')
 # res = ann_model(datasets,dates,look_back,data_partition,cap)
 res = run_cv(method=ann_model, datasets=datasets, dates=dates, look_back=look_back, cap=cap, n_splits=3, flag='ann')
 
-# print('rf_model')
+# logger.info('rf_model')
 # res = rf_model(new_data,i,look_back,data_partition,cap)
 
-# print('lstm_model')
+# logger.info('lstm_model')
 # res = lstm_model(new_data,i,look_back,data_partition,cap)
 
-# print('emd_lstm')
+# logger.info('emd_lstm')
 # res = emd_lstm(new_data,i,look_back,data_partition,cap)
 
-# print('eemd_lstm')
+# logger.info('eemd_lstm')
 # res = eemd_lstm(new_data,i,look_back,data_partition,cap)
 
-# print('ceemdan_lstm')
+# logger.info('ceemdan_lstm')
 # res = ceemdan_lstm(new_data,i,look_back,data_partition,cap)
 
-print('proposed_method')
+logger.info('proposed_method')
 # res = proposed_method(datasets, look_back, data_partition, cap)
 res = run_cv(proposed_method, datasets, dates=dates, look_back=look_back, cap=cap, lstm=True, flag='proposed_method')
 
-# print('proposed_method using hilbert transform')
+# logger.info('proposed_method using hilbert transform')
 # proposed_method(datasets, look_back, data_partition, cap, hilbert=True)
 # res = run_cv(proposed_method, datasets, dates=dates, 
 #              look_back=look_back, cap=cap, hilbert=True)
 
-print('proposed_method_stable_and_dropout_layer')
+logger.info('proposed_method_stable_and_dropout_layer')
 # proposed_method(datasets, look_back, data_partition, cap, drop_extend=True)
 res = run_cv(proposed_method, datasets, dates=dates,
              look_back=look_back, cap=cap, drop_extend=True, flag='proposed_method_stable_and_dropout')
 
-# print('proposed_method_with_bilstm')
+# logger.info('proposed_method_with_bilstm')
 # # proposed_method(datasets, look_back, data_partition, cap, lstm=False, bilstm=True)
 # res = run_cv(proposed_method, datasets, dates=dates,
 #              look_back=look_back,cap=cap, lstm=False, bilstm=True, flag='bilstm')
 
-# print('proposed_method_with_gru')
+# logger.info('proposed_method_with_gru')
 # # proposed_method(datasets, look_back, data_partition, cap, lstm=False, gru=True)
 # res = run_cv(proposed_method, datasets, dates=dates,
 #              look_back=look_back,cap=cap, lstm=False, gru=True, flag='gru')
 
-# print('proposed_method_with_bigru')
+# logger.info('proposed_method_with_bigru')
 # # proposed_method(datasets, look_back, data_partition, cap, lstm=False, bigru=True)
 # res = run_cv(proposed_method, datasets, dates=dates,
 #              look_back=look_back,cap=cap, lstm=False, bigru=True, flag='bigru')
 
-# print('proposed_method_with_transformer_keras')
+# logger.info('proposed_method_with_transformer_keras')
 # proposed_method(datasets, look_back, data_partition, cap, lstm=False, transformer=True)
 # # res = run_cv(proposed_method, datasets, dates=dates,
 # #              look_back=look_back,cap=cap, lstm=False, transformer=True, flag='transformer')
