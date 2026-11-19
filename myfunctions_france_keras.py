@@ -1461,6 +1461,9 @@ def proposed_method(
             if drop_extend:
                 model.add(Dense(64, activation='relu'))
                 model.add(Dropout(0.2))
+            
+            # Camada de saída
+            model.add(Dense(1))
 
 
         model.compile(
