@@ -1510,17 +1510,23 @@ def proposed_method(
     # 5. RECONSTRUÇÃO DO SINAL
     # ============================================================
 
-    # Soma das previsões de todas as componentes
-    result_pred_test = np.vstack(
-        [p.reshape(-1) for p in pred_test]
+    # Cada componente deve possuir uma previsão por instante.
+    pred_test_array = np.stack(
+        [np.asarray(p).reshape(-1) for p in pred_test],
+        axis=0
     )
 
-    result_pred_train = np.vstack(
-        [p.reshape(-1) for p in pred_train]
+    pred_train_array = np.stack(
+        [np.asarray(p).reshape(-1) for p in pred_train],
+        axis=0
     )
 
-    a = np.sum(result_pred_test, axis=0)
-    b = np.sum(result_pred_train, axis=0)
+    # Reconstrução pela soma das componentes
+    a = np.sum(pred_test_array, axis=0)
+    b = np.sum(pred_train_array, axis=0)
+
+    logger.info("Shape reconstrução teste: %s", a.shape)
+    logger.info("Shape reconstrução treino: %s", b.shape)
 
     # ============================================================
     # 6. VALORES REAIS DO SINAL ORIGINAL
