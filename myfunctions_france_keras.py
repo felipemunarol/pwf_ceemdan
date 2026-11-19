@@ -63,12 +63,12 @@ optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=lr)
 neuron=128
 
 #convert an array of values into a dataset matrix
-def create_dataset(X, y, look_back):
+def create_dataset(dataset, look_back):
     dataX, dataY = [], []
 
-    for i in range(len(X) - look_back):
-        dataX.append(X[i:i + look_back])
-        dataY.append(y[i + look_back])
+    for i in range(len(dataset) - look_back):
+        dataX.append(dataset[i:i + look_back])
+        dataY.append(dataset[i + look_back])
 
     return np.asarray(dataX), np.asarray(dataY)
 
@@ -1052,14 +1052,14 @@ def proposed_method(
 
         component = new_ceemdan.iloc[:, i].to_numpy()
 
-    logger.info(
-        f"Componente {i + 1}: "
-        f"mínimo={np.min(component):.8f}, "
-        f"máximo={np.max(component):.8f}, "
-        f"desvio={np.std(component):.8f}, "
-        f"NaN={np.isnan(component).sum()}, "
-        f"Inf={np.isinf(component).sum()}"
-    )
+        logger.info(
+            f"Componente {i + 1}: "
+            f"mínimo={np.min(component):.8f}, " 
+            f"máximo={np.max(component):.8f}, "
+            f"desvio={np.std(component):.8f}, "
+            f"NaN={np.isnan(component).sum()}, "
+            f"Inf={np.isinf(component).sum()}"
+        )
 
     # ============================================================
     # 3. PREPARAÇÃO DAS ENTRADAS
@@ -1201,13 +1201,11 @@ def proposed_method(
 
         trainX, trainY = create_dataset(
             X_train_raw,
-            y_train_raw,
             look_back
         )
 
         testX, testY = create_dataset(
             X_test_raw,
-            y_test_raw,
             look_back
         )
 
@@ -1247,8 +1245,7 @@ def proposed_method(
         logger.info(
             f"trainX: {trainX.shape} | "
             f"testX: {testX.shape} | "
-            f"Features: {n_features}",
-            flush=True
+            f"Features: {n_features}"
         )
 
         # --------------------------------------------------------
@@ -1426,10 +1423,10 @@ def proposed_method(
         y_test, a
     )
 
-    logger.info('MAPE', mape)
-    logger.info('Classic MAPE', classic_mape)
-    logger.info('RMSE', rmse)
-    logger.info('MAE', mae)
+    logger.info("MAPE: %s", mape)
+    logger.info("Classic MAPE: %s", classic_mape)
+    logger.info("RMSE: %s", rmse)
+    logger.info("MAE: %s", mae)
 
     return y_test.flatten(), a.flatten()
 

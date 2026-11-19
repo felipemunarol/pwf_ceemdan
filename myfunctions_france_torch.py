@@ -51,12 +51,12 @@ lr=0.001
 neuron=128
 
 #convert an array of values into a dataset matrix
-def create_dataset(X, y, look_back):
+def create_dataset(dataset, look_back):
     dataX, dataY = [], []
 
-    for i in range(len(X) - look_back):
-        dataX.append(X[i:i + look_back])
-        dataY.append(y[i + look_back])
+    for i in range(len(dataset) - look_back):
+        dataX.append(dataset[i:i + look_back])
+        dataY.append(dataset[i + look_back])
 
     return np.asarray(dataX), np.asarray(dataY)
 
@@ -391,13 +391,11 @@ def proposed_method(
         # --------------------------------------------------------
 
         trainX, trainY = create_dataset(
-            X_train_raw,
             y_train_raw,
             look_back
         )
 
         testX, testY = create_dataset(
-            X_test_raw,
             y_test_raw,
             look_back
         )
@@ -561,9 +559,7 @@ def proposed_method(
                 logger.info(
                     f"Componente {idx + 1} | "
                     f"Epoch {epoch + 1}/{epochs} | "
-                    f"Loss: {epoch_loss / len(train_loader):.6f}",
-                    flush=True
-                )
+                    f"Loss: {epoch_loss / len(train_loader):.6f}"                )
 
         # --------------------------------------------------------
         # Previsões
