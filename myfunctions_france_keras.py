@@ -51,6 +51,10 @@ from sklearn.svm import SVR
 
 from math import sqrt
 
+import logging
+
+logger = logging.getLogger("keras")
+
 batch_size = 64
 epochs=100
 lr=0.001
@@ -80,7 +84,7 @@ def run_cv(method, datasets, dates, look_back, cap, n_splits=3, **kwargs):
 
     for fold, (train_idx, test_idx) in enumerate(tscv.split(datasets)):
 
-        print(f"Executing Fold {fold + 1} - {method.__name__}")
+        logger.info(f"Executing Fold {fold + 1} - {method.__name__}")
 
         # Dados de treino e teste do fold
         fold_idx = np.concatenate([train_idx, test_idx])
@@ -125,27 +129,27 @@ def run_cv(method, datasets, dates, look_back, cap, n_splits=3, **kwargs):
         f"dates={len(dates_all)}"
     )
 
-    print("\n===== CV RESULTS =====")
-    print("Model:", method.__name__)
-    print("Classic MAPE:", np.mean(classic_mape_list))
-    print("MAPE:", np.mean(mape_list))
-    print("RMSE:", np.mean(rmse_list))
-    print("MAE :", np.mean(mae_list))
+    logger.info("\n===== CV RESULTS =====")
+    logger.info("Model:", kwargs['flag'])
+    logger.info("Classic MAPE:", np.mean(classic_mape_list))
+    logger.info("MAPE:", np.mean(mape_list))
+    logger.info("RMSE:", np.mean(rmse_list))
+    logger.info("MAE :", np.mean(mae_list))
 
-    np.savetxt(f'y_test_cv.txt',
+    np.savetxt(f'predictions/y_test_cv.txt',
            np.asarray(y_test_all).ravel(),
            fmt='%.6f')
 
-    np.savetxt(f'y_pred_{method.__name__}_cv.txt',
+    np.savetxt(f'predictions/y_pred_{kwargs['flag']}_cv.txt',
             np.asarray(y_pred_all).ravel(),
             fmt='%.6f')
 
-    np.savetxt('dates_cv.txt',
+    np.savetxt('predictions/dates_cv.txt',
             np.asarray(dates_all).astype(str),
             fmt='%s')
 
     return {
-        "model": method.__name__,
+        "model": kwargs['flag'],
         "mape": np.mean(mape_list),
         "classic_map": np.mean(classic_mape_list),
         "rmse": np.mean(rmse_list),
@@ -439,10 +443,10 @@ def rf_model(new_data,i,look_back,data_partition,cap):
     rmse= sqrt(mean_squared_error(y_test,y_pred_test1_rf))
     mae=metrics.mean_absolute_error(y_test,y_pred_test1_rf)
 
-    print('MAPE',mape)
-    print('Classic MAPE', classic_mape)
-    print('RMSE',rmse)
-    print('MAE',mae)
+    logger.info('MAPE',mape)
+    logger.info('Classic MAPE', classic_mape)
+    logger.info('RMSE',rmse)
+    logger.info('MAE',mae)
 
 
 ##LSTM
@@ -519,10 +523,10 @@ def lstm_model(new_data,i,look_back,data_partition,cap):
     mae=metrics.mean_absolute_error(y_test,y_pred_test1)
 
     
-    print('MAPE',mape)
-    print('Classic MAPE', classic_mape)
-    print('RMSE',rmse)
-    print('MAE',mae)
+    logger.info('MAPE',mape)
+    logger.info('Classic MAPE', classic_mape)
+    logger.info('RMSE',rmse)
+    logger.info('MAE',mae)
 
 
 # In[24]:
@@ -675,10 +679,10 @@ def emd_lstm(new_data,i,look_back,data_partition,cap):
     mae=metrics.mean_absolute_error(y_test,a)
 
     
-    print('MAPE',mape)
-    print('Classic MAPE', classic_mape)
-    print('RMSE',rmse)
-    print('MAE',mae)
+    logger.info('MAPE',mape)
+    logger.info('Classic MAPE', classic_mape)
+    logger.info('RMSE',rmse)
+    logger.info('MAE',mae)
 
 
 # In[25]:
@@ -829,10 +833,10 @@ def eemd_lstm(new_data,i,look_back,data_partition,cap):
     mae=metrics.mean_absolute_error(y_test,a)
 
     
-    print('MAPE',mape)
-    print('Classic MAPE', classic_mape)
-    print('RMSE',rmse)
-    print('MAE',mae)
+    logger.info('MAPE',mape)
+    logger.info('Classic MAPE', classic_mape)
+    logger.info('RMSE',rmse)
+    logger.info('MAE',mae)
 
 
 ##HYBRID CEEMDAN LSTM
@@ -984,17 +988,17 @@ def ceemdan_lstm(new_data,i,look_back,data_partition,cap):
     mae=metrics.mean_absolute_error(y_test,a)
 
     
-    print('MAPE',mape)
-    print('Classic MAPE', classic_mape)
-    print('RMSE',rmse)
-    print('MAE',mae)
+    logger.info('MAPE',mape)
+    logger.info('Classic MAPE', classic_mape)
+    logger.info('RMSE',rmse)
+    logger.info('MAE',mae)
 
 
 ##Proposed Method Hybrid CEEMDAN-EWT LSTM
 def proposed_method(
         datasets, look_back, data_partition, cap,
         lstm=True, gru=False, drop_extend=False, bilstm=False,
-        bigru=False, transformer=False, hilbert=False, save=True
+        bigru=False, transformer=False, hilbert=False, flag='', save=True,
     ):
 
     # ============================================================
@@ -1015,7 +1019,7 @@ def proposed_method(
 
     IMFs = emd_.ceemdan(s)
 
-    print("Shape IMFs:", IMFs.shape, flush=True)
+    logger.info("Shape IMFs:", IMFs.shape, flush=True)
 
     full_imf = pd.DataFrame(IMFs)
     ceemdan1 = full_imf.T
@@ -1041,13 +1045,13 @@ def proposed_method(
         axis=1
     )
 
-    print("Componentes para previsão:", new_ceemdan.shape[1])
+    logger.info("Componentes para previsão:", new_ceemdan.shape[1])
 
     for i in range(new_ceemdan.shape[1]):
 
         component = new_ceemdan.iloc[:, i].to_numpy()
 
-        print(
+        logger.info(
             f"Componente {i + 1}: "
             f"mínimo={np.min(component):.8f}, "
             f"máximo={np.max(component):.8f}, "
@@ -1065,7 +1069,7 @@ def proposed_method(
     # Também poderiam ser utilizadas apenas a HHT das componente de 1 a 9.
     if hilbert:
 
-        print("Aplicando HHT...", flush=True)
+        logger.info("Aplicando HHT...", flush=True)
 
         sample_rate = 1.0    # Verificar
 
@@ -1094,7 +1098,7 @@ def proposed_method(
 
             if not np.any(valid_ia):
 
-                print(
+                logger.info(
                     f"Componente {i + 1}: "
                     "HHT não aplicável. Utilizando componente original.",
                     flush=True
@@ -1141,7 +1145,7 @@ def proposed_method(
 
     else:
 
-        print("Utilizando componentes originais como entradas...", flush=True)
+        logger.info("Utilizando componentes originais como entradas...", flush=True)
 
         input_components = [
             new_ceemdan.iloc[:, i].to_numpy(
@@ -1153,14 +1157,14 @@ def proposed_method(
     # ============================================================
     # 4. PREVISÃO INDIVIDUAL DE CADA COMPONENTE
     # ============================================================
-    print("Inicio do treinamento do modelo", flush=True)
+    logger.info("Inicio do treinamento do modelo", flush=True)
 
     pred_test = []
     pred_train = []
 
     for idx, col in enumerate(new_ceemdan.columns):
 
-        print(f"\nProcessando componente {idx + 1}", flush=True)
+        logger.info(f"\nProcessando componente {idx + 1}", flush=True)
 
         # Entrada: HHT ou componente original
         features = np.asarray(
@@ -1241,7 +1245,7 @@ def proposed_method(
         y = np.ascontiguousarray(y.reshape(-1), dtype=np.float32)
         y1 = np.ascontiguousarray(y1.reshape(-1), dtype=np.float32)
 
-        print(
+        logger.info(
             f"trainX: {trainX.shape} | "
             f"testX: {testX.shape} | "
             f"Features: {n_features}",
@@ -1249,7 +1253,7 @@ def proposed_method(
         )
 
         # --------------------------------------------------------
-        # Construção da LSTM/GRU
+        # Construção do modelo
         # --------------------------------------------------------
 
         K.clear_session()
@@ -1423,10 +1427,10 @@ def proposed_method(
         y_test, a
     )
 
-    print('MAPE', mape)
-    print('Classic MAPE', classic_mape)
-    print('RMSE', rmse)
-    print('MAE', mae)
+    logger.info('MAPE', mape)
+    logger.info('Classic MAPE', classic_mape)
+    logger.info('RMSE', rmse)
+    logger.info('MAE', mae)
 
     return y_test.flatten(), a.flatten()
 
@@ -1553,9 +1557,9 @@ def proposed_method(
 #     rmse = sqrt(mean_squared_error(y_test, a))
 #     mae = metrics.mean_absolute_error(y_test, a)
 
-#     print('MAPE', mape)
-#     print('RMSE', rmse)
-#     print('MAE', mae)
+#     logger.info('MAPE', mape)
+#     logger.info('RMSE', rmse)
+#     logger.info('MAE', mae)
 
 #     # 8. Save the results
 #     np.savetxt(os.path.join(BASE_DIR, 'y_test.txt'),
@@ -1693,10 +1697,10 @@ def proposed_method(
 #     rmse = sqrt(mean_squared_error(y_test, y_pred))
 #     mae = metrics.mean_absolute_error(y_test, y_pred)
 
-#     print('MAPE', mape)
-#     print('Classic MAPE', classic_mape)
-#     print('RMSE', rmse)
-#     print('MAE', mae)
+#     logger.info('MAPE', mape)
+#     logger.info('Classic MAPE', classic_mape)
+#     logger.info('RMSE', rmse)
+#     logger.info('MAE', mae)
 
 #     # Save metrics
 #     try:
@@ -1802,10 +1806,10 @@ def proposed_method_with_kan(
 
     IMFs = emd.ceemdan(s)
 
-    print("Shape IMFs:", IMFs.shape, flush=True)
+    logger.info("Shape IMFs:", IMFs.shape, flush=True)
 
     full_imf = pd.DataFrame(IMFs)
-    print("Quantidade IMFs", full_imf.shape[0], flush=True)
+    logger.info("Quantidade IMFs", full_imf.shape[0], flush=True)
 
     ceemdan1=full_imf.T
     
@@ -1894,12 +1898,12 @@ def proposed_method_with_kan(
                     val_loss /= len(val_loader)
                     val_losses.append(val_loss)
 
-                    print(
+                    logger.info(
                         f"Epoch [{epoch+1}/{epochs}] "
                         f"Train MSE: {epoch_loss:.6f} | Val MSE: {val_loss:.6f}"
                     )
                 else:
-                    print(
+                    logger.info(
                         f"Epoch [{epoch+1}/{epochs}] "
                         f"Train MSE: {epoch_loss:.6f}"
                     )
@@ -1951,9 +1955,9 @@ def proposed_method_with_kan(
     rmse = sqrt(mean_squared_error(y_test, a))
     mae = metrics.mean_absolute_error(y_test, a)
 
-    print("MAPE:", mape)
-    print("RMSE:", rmse)
-    print("MAE:", mae)
+    logger.info("MAPE:", mape)
+    logger.info("RMSE:", rmse)
+    logger.info("MAE:", mae)
 
     # Save the real and predict values
     np.savetxt(os.path.join(BASE_DIR, 'y_test.txt'), y_test.values.flatten(), fmt='%.6f')
@@ -2045,10 +2049,10 @@ def proposed_method_with_deeponet(
 
     IMFs = emd.ceemdan(s)
 
-    print("Shape IMFs:", IMFs.shape, flush=True)
+    logger.info("Shape IMFs:", IMFs.shape, flush=True)
 
     full_imf = pd.DataFrame(IMFs)
-    print("Quantidade IMFs", full_imf.shape[0], flush=True)
+    logger.info("Quantidade IMFs", full_imf.shape[0], flush=True)
 
     ceemdan1=full_imf.T
     
@@ -2128,7 +2132,7 @@ def proposed_method_with_deeponet(
                 loss_epoch += loss.item()
 
             if (epoch + 1) % 10 == 0:
-                print(f"Epoch {epoch+1}/{epochs} - MSE: {loss_epoch/len(train_loader):.6f}")
+                logger.info(f"Epoch {epoch+1}/{epochs} - MSE: {loss_epoch/len(train_loader):.6f}")
 
         # -----------------------------
         # Previsão
@@ -2158,9 +2162,9 @@ def proposed_method_with_deeponet(
     rmse = sqrt(mean_squared_error(y_test, a))
     mae  = metrics.mean_absolute_error(y_test, a)
 
-    print("MAPE:", mape)
-    print("RMSE:", rmse)
-    print("MAE:", mae)
+    logger.info("MAPE:", mape)
+    logger.info("RMSE:", rmse)
+    logger.info("MAE:", mae)
 
     return y_test.values.flatten(), a.values.flatten()
 
@@ -2252,10 +2256,10 @@ def proposed_method_with_lstm_deeponet(
 
     IMFs = emd.ceemdan(s)
 
-    print("Shape IMFs:", IMFs.shape, flush=True)
+    logger.info("Shape IMFs:", IMFs.shape, flush=True)
 
     full_imf = pd.DataFrame(IMFs)
-    print("Quantidade IMFs", full_imf.shape[0], flush=True)
+    logger.info("Quantidade IMFs", full_imf.shape[0], flush=True)
 
     ceemdan1=full_imf.T
     
@@ -2336,7 +2340,7 @@ def proposed_method_with_lstm_deeponet(
                 loss_epoch += loss.item()
 
             if (epoch + 1) % 10 == 0:
-                print(f"IMF {col} | Epoch {epoch+1}/{epochs} | MSE {loss_epoch/len(train_loader):.6f}")
+                logger.info(f"IMF {col} | Epoch {epoch+1}/{epochs} | MSE {loss_epoch/len(train_loader):.6f}")
 
         # ==========================================================
         # Previsão
@@ -2366,9 +2370,9 @@ def proposed_method_with_lstm_deeponet(
     rmse = sqrt(mean_squared_error(y_test, a))
     mae  = metrics.mean_absolute_error(y_test, a)
 
-    print("MAPE:", mape)
-    print("RMSE:", rmse)
-    print("MAE:", mae)
+    logger.info("MAPE:", mape)
+    logger.info("RMSE:", rmse)
+    logger.info("MAE:", mae)
 
     return y_test.values.flatten(), a.values.flatten()
 

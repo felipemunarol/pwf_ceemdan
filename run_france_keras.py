@@ -5,6 +5,10 @@ os.environ["AUTOGRAPH_VERBOSITY"] = "0"
 import faulthandler
 faulthandler.enable()
 
+from logger_config import configurar_logger
+
+logger = configurar_logger("keras")
+
 import pandas as pd
 
 import tensorflow as tf
@@ -26,10 +30,6 @@ if gpus:
     for gpu in gpus:
         tf.config.experimental.set_memory_growth(gpu, True)
 
-
-def clear_memory():
-    K.clear_session()
-    gc.collect()
 
 df = pd.read_csv('dataset/final_la_haute_R0711.csv')
 df['Date'] = pd.to_datetime(
@@ -55,11 +55,11 @@ datasets = data1['P_avg'].values.reshape(-1, 1)
 
 print('svr_model')
 # res = svr_model(datasets,dates,look_back,data_partition,cap)
-res = run_cv(method=svr_model, datasets=datasets, dates=dates, look_back=look_back, cap=cap, n_splits=3)
+res = run_cv(method=svr_model, datasets=datasets, dates=dates, look_back=look_back, cap=cap, n_splits=3, flag='svr')
 
 print('ann_model')
 # res = ann_model(datasets,dates,look_back,data_partition,cap)
-res = run_cv(method=ann_model, datasets=datasets, dates=dates, look_back=look_back, cap=cap, n_splits=3)
+res = run_cv(method=ann_model, datasets=datasets, dates=dates, look_back=look_back, cap=cap, n_splits=3, flag='ann')
 
 # print('rf_model')
 # res = rf_model(new_data,i,look_back,data_partition,cap)
@@ -78,7 +78,7 @@ res = run_cv(method=ann_model, datasets=datasets, dates=dates, look_back=look_ba
 
 print('proposed_method')
 # res = proposed_method(datasets, look_back, data_partition, cap)
-res = run_cv(proposed_method, datasets, dates=dates, look_back=look_back, cap=cap, lstm=True)
+res = run_cv(proposed_method, datasets, dates=dates, look_back=look_back, cap=cap, lstm=True, flag='proposed_method')
 
 # print('proposed_method using hilbert transform')
 # proposed_method(datasets, look_back, data_partition, cap, hilbert=True)
@@ -88,27 +88,27 @@ res = run_cv(proposed_method, datasets, dates=dates, look_back=look_back, cap=ca
 print('proposed_method_stable_and_dropout_layer')
 # proposed_method(datasets, look_back, data_partition, cap, drop_extend=True)
 res = run_cv(proposed_method, datasets, dates=dates,
-             look_back=look_back, cap=cap, drop_extend=True)
+             look_back=look_back, cap=cap, drop_extend=True, flag='proposed_method_stable_and_dropout')
 
 # print('proposed_method_with_bilstm')
 # # proposed_method(datasets, look_back, data_partition, cap, lstm=False, bilstm=True)
 # res = run_cv(proposed_method, datasets, dates=dates,
-#              look_back=look_back,cap=cap, lstm=False, bilstm=True)
+#              look_back=look_back,cap=cap, lstm=False, bilstm=True, flag='bilstm')
 
 # print('proposed_method_with_gru')
 # # proposed_method(datasets, look_back, data_partition, cap, lstm=False, gru=True)
 # res = run_cv(proposed_method, datasets, dates=dates,
-#              look_back=look_back,cap=cap, lstm=False, gru=True)
+#              look_back=look_back,cap=cap, lstm=False, gru=True, flag='gru')
 
 # print('proposed_method_with_bigru')
 # # proposed_method(datasets, look_back, data_partition, cap, lstm=False, bigru=True)
 # res = run_cv(proposed_method, datasets, dates=dates,
-#              look_back=look_back,cap=cap, lstm=False, bigru=True)
+#              look_back=look_back,cap=cap, lstm=False, bigru=True, flag='bigru')
 
 # print('proposed_method_with_transformer_keras')
 # proposed_method(datasets, look_back, data_partition, cap, lstm=False, transformer=True)
 # # res = run_cv(proposed_method, datasets, dates=dates,
-# #              look_back=look_back,cap=cap, lstm=False, transformer=True)
+# #              look_back=look_back,cap=cap, lstm=False, transformer=True, flag='transformer')
 
 
 

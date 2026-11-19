@@ -5,6 +5,10 @@ os.environ["AUTOGRAPH_VERBOSITY"] = "0"
 import faulthandler
 faulthandler.enable()
 
+from logger_config import configurar_logger
+
+logger = configurar_logger("torch")
+
 import pandas as pd
 
 from myfunctions_france_torch import proposed_method, \
@@ -35,10 +39,10 @@ dates = data1['Date']
 datasets = data1['P_avg'].values.reshape(-1, 1)
 
 
-print('proposed_method_with_seq_kan')
+logger.info('proposed_method_with_seq_kan')
 # proposed_method(datasets, look_back, data_partition, cap)
 res = run_cv(proposed_method, datasets, dates=dates,
-             look_back=look_back,cap=cap)
+             look_back=look_back,cap=cap, flag='seqkan')
 
 
 
