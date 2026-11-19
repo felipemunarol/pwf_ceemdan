@@ -5,16 +5,20 @@ os.environ["AUTOGRAPH_VERBOSITY"] = "0"
 import faulthandler
 faulthandler.enable()
 
-from logger_config import configurar_logger
-
-logger = configurar_logger("ceemdan_torch")
-
 import pandas as pd
 
 from myfunctions_france_torch import proposed_method, \
     proposed_method_with_deeponet, \
     proposed_method_with_lstm_deeponet, run_cv
 
+from logger_config import configurar_logger
+
+# Reconfigura o logger após os imports para garantir que permaneça habilitado.
+logger = configurar_logger("ceemdan_torch")
+logger.disabled = False
+
+print("Após imports:", logger.disabled)
+logger.info("Logger funcionando após imports")
 
 df = pd.read_csv('dataset/final_la_haute_R0711.csv')
 df['Date'] = pd.to_datetime(
@@ -38,6 +42,12 @@ data1 = data1.reset_index(drop=True).dropna()
 dates = data1['Date']
 datasets = data1['P_avg'].values.reshape(-1, 1)
 
+import logging
+print("Logger disabled:", logger.disabled)
+print("INFO habilitado:", logger.isEnabledFor(logging.INFO))
+
+logger.info("TESTE INFO")
+logger.warning("TESTE WARNING")
 
 logger.info('proposed_method_with_seq_kan')
 # proposed_method(datasets, look_back, data_partition, cap)

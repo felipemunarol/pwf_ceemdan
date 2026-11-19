@@ -5,10 +5,6 @@ os.environ["AUTOGRAPH_VERBOSITY"] = "0"
 import faulthandler
 faulthandler.enable()
 
-from logger_config import configurar_logger
-
-logger = configurar_logger("ceemdan_keras")
-
 import pandas as pd
 
 import tensorflow as tf
@@ -16,6 +12,12 @@ import tensorflow as tf
 from myfunctions_france_keras import \
     run_cv, svr_model, ann_model, rf_model, lstm_model, emd_lstm, eemd_lstm, \
     ceemdan_lstm, proposed_method 
+
+from logger_config import configurar_logger
+
+# Reconfigura o logger após os imports para garantir que permaneça habilitado.
+logger = configurar_logger("ceemdan_torch")
+logger.disabled = False
 
 # Limita uso de memória CPU. Impede que o código pare.
 tf.config.threading.set_intra_op_parallelism_threads(1)

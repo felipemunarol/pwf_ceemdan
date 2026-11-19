@@ -60,11 +60,23 @@ def create_dataset(dataset, look_back):
 
     return np.asarray(dataX), np.asarray(dataY)
 
+# Separa a criação das entradas e dos alvos
+def create_dataset_xy(X, y, look_back):
+    dataX, dataY = [], []
+
+    for i in range(len(X) - look_back):
+        dataX.append(X[i:i + look_back])
+        dataY.append(y[i + look_back])
+
+    return np.asarray(dataX), np.asarray(dataY)
+
 # Divide o conjunto de dados para a validação cruzada temporal e passa para o método.
 # O método recebe o conjunto de dados da validação cruzada e a relação de divisão para etapa
 # da validação.
 # Ao final, salva os resultados médios das métricas da validação cruzada e do conjunto de dados.
 def run_cv(method, datasets, dates, look_back, cap, n_splits=3, **kwargs):
+
+    flag = kwargs.get('flag', '')
 
     tscv = TimeSeriesSplit(n_splits=n_splits)
 
@@ -73,7 +85,7 @@ def run_cv(method, datasets, dates, look_back, cap, n_splits=3, **kwargs):
 
     for fold, (train_idx, test_idx) in enumerate(tscv.split(datasets)):
 
-        logger.info(f"Executing Fold {fold + 1} - {kwargs['flag']}")
+        logger.info(f"Executing Fold {fold + 1} - {flag}")
 
         # Dados de treino e teste do fold
         fold_idx = np.concatenate([train_idx, test_idx])
@@ -119,7 +131,7 @@ def run_cv(method, datasets, dates, look_back, cap, n_splits=3, **kwargs):
     )
 
     logger.info("\n===== CV RESULTS =====")
-    logger.info("Model: %s", kwargs['flag'])
+    logger.info("Model: %s", flag)
     logger.info("Classic MAPE: %s", np.mean(classic_mape_list))
     logger.info("MAPE: %s", np.mean(mape_list))
     logger.info("RMSE: %s", np.mean(rmse_list))
@@ -129,7 +141,7 @@ def run_cv(method, datasets, dates, look_back, cap, n_splits=3, **kwargs):
            np.asarray(y_test_all).ravel(),
            fmt='%.6f')
 
-    np.savetxt(f"y_pred_{kwargs['flag']}_cv.txt",
+    np.savetxt(f"y_pred_{flag}_cv.txt",
             np.asarray(y_pred_all).ravel(),
             fmt='%.6f')
 
@@ -138,7 +150,7 @@ def run_cv(method, datasets, dates, look_back, cap, n_splits=3, **kwargs):
             fmt='%s')
 
     return {
-        "model": kwargs['flag'],
+        "model": flag,
         "mape": np.mean(mape_list),
         "classic_map": np.mean(classic_mape_list),
         "rmse": np.mean(rmse_list),
@@ -390,12 +402,14 @@ def proposed_method(
         # Criação das janelas temporais
         # --------------------------------------------------------
 
-        trainX, trainY = create_dataset(
+        trainX, trainY = create_dataset_xy(
+            X_train_raw,
             y_train_raw,
             look_back
         )
 
-        testX, testY = create_dataset(
+        testX, testY = create_dataset_xy(
+            X_test_raw,
             y_test_raw,
             look_back
         )
@@ -793,9 +807,9 @@ def proposed_method_with_deeponet(
         y_train, y_test = y[:split], y[split:]
 
         # Branch = janela temporal
-        Xb_train = X_train
-        Xb_test  = X_test
-
+        Xb_train = X_train.reshape(-1, look_back)
+        Xb_test = X_test.reshape(-1, look_back)
+        
         # Trunk = tempo normalizado
         Xt_train = np.linspace(0, 1, len(Xb_train)).reshape(-1, 1)
         Xt_test  = np.linspace(0, 1, len(Xb_test)).reshape(-1, 1)
@@ -824,6 +838,11 @@ def proposed_method_with_deeponet(
         # -----------------------------
         # Treinamento
         # -----------------------------
+        optimizer = torch.optim.Adam(
+            model.parameters(),
+            lr=0.001
+        )
+
         for epoch in range(epochs):
             model.train()
             loss_epoch = 0.0
@@ -1087,14 +1106,29 @@ def proposed_method_with_lstm_deeponet(
 
 if __name__=='__main__':
     df = pd.read_csv('dataset/final_la_haute_R0711.csv')
-    df['Date'] = pd.to_datetime(df['Date_time'], dayfirst=True)
-    df['Year'] = df['Date'].dt.year 
-    df['Month'] = df['Date'].dt.month 
-    new_data=df[['Month','Year','Date','P_avg']]
-    new_data=new_data[new_data.Year == 2017]
 
-    cap=max(new_data['P_avg'])
-    i=[1] # enter month value, i.e January = 1
-    look_back=6
-    data_partition=0.8
-    proposed_method(new_data,i,look_back,data_partition,cap)
+    df['Date'] = pd.to_datetime(
+        df['Date_time'],
+        dayfirst=True
+    )
+
+    df['Year'] = df['Date'].dt.year
+    df['Month'] = df['Date'].dt.month
+
+    new_data = df[
+        (df['Year'] == 2017) &
+        (df['Month'] == 1)
+    ]
+
+    datasets = new_data['P_avg'].to_numpy(dtype=np.float64)
+
+    cap = np.max(datasets)
+    look_back = 6
+    data_partition = 0.8
+
+    proposed_method(
+        datasets=datasets,
+        look_back=look_back,
+        data_partition=data_partition,
+        cap=cap
+    )

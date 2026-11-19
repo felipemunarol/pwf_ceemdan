@@ -72,11 +72,23 @@ def create_dataset(dataset, look_back):
 
     return np.asarray(dataX), np.asarray(dataY)
 
+# Separa a criação das entradas e dos alvos
+def create_dataset_xy(X, y, look_back):
+    dataX, dataY = [], []
+
+    for i in range(len(X) - look_back):
+        dataX.append(X[i:i + look_back])
+        dataY.append(y[i + look_back])
+
+    return np.asarray(dataX), np.asarray(dataY)
+
 # Divide o conjunto de dados para a validação cruzada temporal e passa para o método.
 # O método recebe o conjunto de dados da validação cruzada e a relação de divisão para etapa
 # da validação.
 # Ao final, salva os resultados médios das métricas da validação cruzada e do conjunto de dados.
 def run_cv(method, datasets, dates, look_back, cap, n_splits=3, **kwargs):
+
+    flag = kwargs.get('flag', '')
 
     tscv = TimeSeriesSplit(n_splits=n_splits)
 
@@ -131,17 +143,19 @@ def run_cv(method, datasets, dates, look_back, cap, n_splits=3, **kwargs):
     )
 
     logger.info("\n===== CV RESULTS =====")
-    logger.info(f"Model: {kwargs['flag']}")
+    logger.info(f"Model: {flag}")
     logger.info(f"Classic MAPE: {np.mean(classic_mape_list)}")
     logger.info(f"MAPE: {np.mean(mape_list)}")
     logger.info(f"RMSE: {np.mean(rmse_list)}")
     logger.info(f"MAE: {np.mean(mae_list)}")
 
+    os.makedirs("predictions", exist_ok=True)
+
     np.savetxt(f'predictions/y_test_cv.txt',
            np.asarray(y_test_all).ravel(),
            fmt='%.6f')
 
-    np.savetxt(f"predictions/y_pred_{kwargs['flag']}_cv.txt",
+    np.savetxt(f"predictions/y_pred_{flag}_cv.txt",
             np.asarray(y_pred_all).ravel(),
             fmt='%.6f')
 
@@ -150,7 +164,7 @@ def run_cv(method, datasets, dates, look_back, cap, n_splits=3, **kwargs):
             fmt='%s')
 
     return {
-        "model": kwargs['flag'],
+        "model": flag,
         "mape": np.mean(mape_list),
         "classic_map": np.mean(classic_mape_list),
         "rmse": np.mean(rmse_list),
@@ -262,8 +276,12 @@ def svr_model(datasets, look_back, data_partition=0.7, cap=None):
     sc_X = StandardScaler()
     sc_y = StandardScaler()
 
-    X_train = sc_X.fit_transform(trainX)
-    X_test = sc_X.transform(testX)
+    X_train = sc_X.fit_transform(
+        trainX.reshape(trainX.shape[0], -1)
+    )
+    X_test = sc_X.transform(
+        testX.reshape(testX.shape[0], -1)
+    )
 
     y_train = sc_y.fit_transform(
         np.asarray(trainY).reshape(-1, 1)
@@ -320,8 +338,12 @@ def ann_model(datasets, look_back, data_partition=0.7, cap=None):
     sc_X = StandardScaler()
     sc_y = StandardScaler()
 
-    X_train = sc_X.fit_transform(X_train)
-    X_test = sc_X.transform(X_test)
+    X_train = sc_X.fit_transform(
+        trainX.reshape(-1, look_back)
+    )
+    X_test = sc_X.transform(
+        testX.reshape(-1, look_back)
+    )
 
     y_train = sc_y.fit_transform(y_train).ravel()
 
@@ -395,19 +417,28 @@ def rf_model(new_data,i,look_back,data_partition,cap):
 
     trainX, trainY = create_dataset(train, look_back)
     testX, testY = create_dataset(test, look_back)
-    X_train=pd.DataFrame(trainX)
-    Y_train=pd.DataFrame(trainY)
-    X_test=pd.DataFrame(testX)
-    Y_test=pd.DataFrame(testY)
+
+    X_train = pd.DataFrame(
+        trainX.reshape(trainX.shape[0], -1)
+    )
+    Y_train = pd.DataFrame(trainY)
+
+    X_test = pd.DataFrame(
+        testX.reshape(testX.shape[0], -1)
+    )
+    Y_test = pd.DataFrame(testY)
+
     sc_X = StandardScaler()
     sc_y = StandardScaler()
 
-    X= sc_X.fit_transform(X_train)
-    y= sc_y.fit_transform(Y_train)
-    X1= sc_X.fit_transform(X_test)
-    y1= sc_y.fit_transform(Y_test)
-    y=y.ravel()
-    y1=y1.ravel()  
+    X = sc_X.fit_transform(X_train)
+    y = sc_y.fit_transform(Y_train)
+
+    X1 = sc_X.transform(X_test)
+    y1 = sc_y.transform(Y_test)
+
+    y = y.ravel()
+    y1 = y1.ravel()
     
     numpy.random.seed(1234)
     tf.random.set_seed(1234)
@@ -472,19 +503,28 @@ def lstm_model(new_data,i,look_back,data_partition,cap):
 
     trainX, trainY = create_dataset(train, look_back)
     testX, testY = create_dataset(test, look_back)
-    X_train=pd.DataFrame(trainX)
-    Y_train=pd.DataFrame(trainY)
-    X_test=pd.DataFrame(testX)
-    Y_test=pd.DataFrame(testY)
+
+    X_train = pd.DataFrame(
+        trainX.reshape(trainX.shape[0], -1)
+    )
+    Y_train = pd.DataFrame(trainY)
+
+    X_test = pd.DataFrame(
+        testX.reshape(testX.shape[0], -1)
+    )
+    Y_test = pd.DataFrame(testY)
+
     sc_X = StandardScaler()
     sc_y = StandardScaler()
 
-    X= sc_X.fit_transform(X_train)
-    y= sc_y.fit_transform(Y_train)
-    X1= sc_X.fit_transform(X_test)
-    y1= sc_y.fit_transform(Y_test)
-    y=y.ravel()
-    y1=y1.ravel()  
+    X = sc_X.fit_transform(X_train)
+    y = sc_y.fit_transform(Y_train)
+
+    X1 = sc_X.transform(X_test)
+    y1 = sc_y.transform(Y_test)
+
+    y = y.ravel()
+    y1 = y1.ravel()
     
     numpy.random.seed(1234)
     tf.random.set_seed(1234)
@@ -570,18 +610,28 @@ def emd_lstm(new_data,i,look_back,data_partition,cap):
 
         trainX, trainY = create_dataset(train, look_back)
         testX, testY = create_dataset(test, look_back)
-        X_train=pd.DataFrame(trainX)
-        Y_train=pd.DataFrame(trainY)
-        X_test=pd.DataFrame(testX)
-        Y_test=pd.DataFrame(testY)
+
+        X_train = pd.DataFrame(
+            trainX.reshape(trainX.shape[0], -1)
+        )
+        Y_train = pd.DataFrame(trainY)
+
+        X_test = pd.DataFrame(
+            testX.reshape(testX.shape[0], -1)
+        )
+        Y_test = pd.DataFrame(testY)
+
         sc_X = StandardScaler()
         sc_y = StandardScaler()
-        X= sc_X.fit_transform(X_train)
-        y= sc_y.fit_transform(Y_train)
-        X1= sc_X.fit_transform(X_test)
-        y1= sc_y.fit_transform(Y_test)
-        y=y.ravel()
-        y1=y1.ravel()  
+
+        X = sc_X.fit_transform(X_train)
+        y = sc_y.fit_transform(Y_train)
+
+        X1 = sc_X.transform(X_test)
+        y1 = sc_y.transform(Y_test)
+
+        y = y.ravel()
+        y1 = y1.ravel()
 
         trainX = numpy.reshape(X, (X.shape[0],X.shape[1],1))
         testX = numpy.reshape(X1, (X1.shape[0],X1.shape[1],1))
@@ -640,19 +690,28 @@ def emd_lstm(new_data,i,look_back,data_partition,cap):
 
     trainX, trainY = create_dataset(train, look_back)
     testX, testY = create_dataset(test, look_back)
-    X_train=pd.DataFrame(trainX)
-    Y_train=pd.DataFrame(trainY)
-    X_test=pd.DataFrame(testX)
-    Y_test=pd.DataFrame(testY)
+
+    X_train = pd.DataFrame(
+        trainX.reshape(trainX.shape[0], -1)
+    )
+    Y_train = pd.DataFrame(trainY)
+
+    X_test = pd.DataFrame(
+        testX.reshape(testX.shape[0], -1)
+    )
+    Y_test = pd.DataFrame(testY)
 
     sc_X = StandardScaler()
-    sc_y = StandardScaler() 
-    X= sc_X.fit_transform(X_train)
-    y= sc_y.fit_transform(Y_train)
-    X1= sc_X.fit_transform(X_test)
-    y1= sc_y.fit_transform(Y_test)
-    y=y.ravel()
-    y1=y1.ravel()
+    sc_y = StandardScaler()
+
+    X = sc_X.fit_transform(X_train)
+    y = sc_y.fit_transform(Y_train)
+
+    X1 = sc_X.transform(X_test)
+    y1 = sc_y.transform(Y_test)
+
+    y = y.ravel()
+    y1 = y1.ravel()
 
 
     trainX = numpy.reshape(X, (X.shape[0], 1, X.shape[1]))
@@ -727,18 +786,28 @@ def eemd_lstm(new_data,i,look_back,data_partition,cap):
 
         trainX, trainY = create_dataset(train, look_back)
         testX, testY = create_dataset(test, look_back)
-        X_train=pd.DataFrame(trainX)
-        Y_train=pd.DataFrame(trainY)
-        X_test=pd.DataFrame(testX)
-        Y_test=pd.DataFrame(testY)
+
+        X_train = pd.DataFrame(
+            trainX.reshape(trainX.shape[0], -1)
+        )
+        Y_train = pd.DataFrame(trainY)
+
+        X_test = pd.DataFrame(
+            testX.reshape(testX.shape[0], -1)
+        )
+        Y_test = pd.DataFrame(testY)
+
         sc_X = StandardScaler()
         sc_y = StandardScaler()
-        X= sc_X.fit_transform(X_train)
-        y= sc_y.fit_transform(Y_train)
-        X1= sc_X.fit_transform(X_test)
-        y1= sc_y.fit_transform(Y_test)
-        y=y.ravel()
-        y1=y1.ravel()  
+
+        X = sc_X.fit_transform(X_train)
+        y = sc_y.fit_transform(Y_train)
+
+        X1 = sc_X.transform(X_test)
+        y1 = sc_y.transform(Y_test)
+
+        y = y.ravel()
+        y1 = y1.ravel()
 
         trainX = numpy.reshape(X, (X.shape[0],X.shape[1],1))
         testX = numpy.reshape(X1, (X1.shape[0],X1.shape[1],1))
@@ -794,20 +863,28 @@ def eemd_lstm(new_data,i,look_back,data_partition,cap):
 
     trainX, trainY = create_dataset(train, look_back)
     testX, testY = create_dataset(test, look_back)
-    X_train=pd.DataFrame(trainX)
-    Y_train=pd.DataFrame(trainY)
-    X_test=pd.DataFrame(testX)
-    Y_test=pd.DataFrame(testY)
+
+    X_train = pd.DataFrame(
+        trainX.reshape(trainX.shape[0], -1)
+    )
+    Y_train = pd.DataFrame(trainY)
+
+    X_test = pd.DataFrame(
+        testX.reshape(testX.shape[0], -1)
+    )
+    Y_test = pd.DataFrame(testY)
 
     sc_X = StandardScaler()
-    sc_y = StandardScaler() 
-    X= sc_X.fit_transform(X_train)
-    y= sc_y.fit_transform(Y_train)
-    X1= sc_X.fit_transform(X_test)
-    y1= sc_y.fit_transform(Y_test)
-    y=y.ravel()
-    y1=y1.ravel()
+    sc_y = StandardScaler()
 
+    X = sc_X.fit_transform(X_train)
+    y = sc_y.fit_transform(Y_train)
+
+    X1 = sc_X.transform(X_test)
+    y1 = sc_y.transform(Y_test)
+
+    y = y.ravel()
+    y1 = y1.ravel()
 
     trainX = numpy.reshape(X, (X.shape[0], 1, X.shape[1]))
     testX = numpy.reshape(X1, (X1.shape[0], 1, X1.shape[1]))
@@ -875,21 +952,31 @@ def ceemdan_lstm(new_data,i,look_back,data_partition,cap):
         train_size = int(len(datasets) * data_partition)
         test_size = len(datasets) - train_size
         train, test = datasets[0:train_size], datasets[train_size:len(datasets)]
-
+    
         trainX, trainY = create_dataset(train, look_back)
         testX, testY = create_dataset(test, look_back)
-        X_train=pd.DataFrame(trainX)
-        Y_train=pd.DataFrame(trainY)
-        X_test=pd.DataFrame(testX)
-        Y_test=pd.DataFrame(testY)
+
+        X_train = pd.DataFrame(
+            trainX.reshape(trainX.shape[0], -1)
+        )
+        Y_train = pd.DataFrame(trainY)
+
+        X_test = pd.DataFrame(
+            testX.reshape(testX.shape[0], -1)
+        )
+        Y_test = pd.DataFrame(testY)
+
         sc_X = StandardScaler()
         sc_y = StandardScaler()
-        X= sc_X.fit_transform(X_train)
-        y= sc_y.fit_transform(Y_train)
-        X1= sc_X.fit_transform(X_test)
-        y1= sc_y.fit_transform(Y_test)
-        y=y.ravel()
-        y1=y1.ravel()  
+
+        X = sc_X.fit_transform(X_train)
+        y = sc_y.fit_transform(Y_train)
+
+        X1 = sc_X.transform(X_test)
+        y1 = sc_y.transform(Y_test)
+
+        y = y.ravel()
+        y1 = y1.ravel()
 
         trainX = numpy.reshape(X, (X.shape[0],X.shape[1],1))
         testX = numpy.reshape(X1, (X1.shape[0],X1.shape[1],1))
@@ -949,20 +1036,28 @@ def ceemdan_lstm(new_data,i,look_back,data_partition,cap):
 
     trainX, trainY = create_dataset(train, look_back)
     testX, testY = create_dataset(test, look_back)
-    X_train=pd.DataFrame(trainX)
-    Y_train=pd.DataFrame(trainY)
-    X_test=pd.DataFrame(testX)
-    Y_test=pd.DataFrame(testY)
+
+    X_train = pd.DataFrame(
+        trainX.reshape(trainX.shape[0], -1)
+    )
+    Y_train = pd.DataFrame(trainY)
+
+    X_test = pd.DataFrame(
+        testX.reshape(testX.shape[0], -1)
+    )
+    Y_test = pd.DataFrame(testY)
 
     sc_X = StandardScaler()
-    sc_y = StandardScaler() 
-    X= sc_X.fit_transform(X_train)
-    y= sc_y.fit_transform(Y_train)
-    X1= sc_X.fit_transform(X_test)
-    y1= sc_y.fit_transform(Y_test)
-    y=y.ravel()
-    y1=y1.ravel()
+    sc_y = StandardScaler()
 
+    X = sc_X.fit_transform(X_train)
+    y = sc_y.fit_transform(Y_train)
+
+    X1 = sc_X.transform(X_test)
+    y1 = sc_y.transform(Y_test)
+
+    y = y.ravel()
+    y1 = y1.ravel()
 
     trainX = numpy.reshape(X, (X.shape[0], 1, X.shape[1]))
     testX = numpy.reshape(X1, (X1.shape[0], 1, X1.shape[1]))
@@ -1199,13 +1294,15 @@ def proposed_method(
         # Criação das janelas temporais
         # --------------------------------------------------------
 
-        trainX, trainY = create_dataset(
+        trainX, trainY = create_dataset_xy(
             X_train_raw,
+            y_train_raw,
             look_back
         )
 
-        testX, testY = create_dataset(
+        testX, testY = create_dataset_xy(
             X_test_raw,
+            y_test_raw,
             look_back
         )
 
@@ -1239,8 +1336,8 @@ def proposed_method(
         trainX = np.ascontiguousarray(X, dtype=np.float32)
         testX = np.ascontiguousarray(X1, dtype=np.float32)
 
-        y = np.ascontiguousarray(y.reshape(-1), dtype=np.float32)
-        y1 = np.ascontiguousarray(y1.reshape(-1), dtype=np.float32)
+        y = np.ascontiguousarray(y.reshape(-1, 1), dtype=np.float32)
+        y1 = np.ascontiguousarray(y1.reshape(-1, 1), dtype=np.float32)
 
         logger.info(
             f"trainX: {trainX.shape} | "
@@ -1713,14 +1810,26 @@ def proposed_method(
 
 if __name__=='__main__':
     df = pd.read_csv('dataset/final_la_haute_R0711.csv')
-    df['Date'] = pd.to_datetime(df['Date_time'], dayfirst=True)
-    df['Year'] = df['Date'].dt.year 
-    df['Month'] = df['Date'].dt.month 
-    new_data=df[['Month','Year','Date','P_avg']]
-    new_data=new_data[new_data.Year == 2017]
 
-    cap=max(new_data['P_avg'])
-    i=[1] # enter month value, i.e January = 1
-    look_back=6
-    data_partition=0.8
-    proposed_method(new_data,i,look_back,data_partition,cap)
+    df['Date'] = pd.to_datetime(df['Date_time'], dayfirst=True)
+    df['Year'] = df['Date'].dt.year
+    df['Month'] = df['Date'].dt.month
+
+    new_data = df[['Month', 'Year', 'Date', 'P_avg']]
+    new_data = new_data[new_data.Year == 2017]
+
+    cap = max(new_data['P_avg'])
+
+    i = [1]
+    look_back = 6
+    data_partition = 0.8
+
+    data1 = new_data[new_data['Month'].isin(i)].reset_index(drop=True)
+    datasets = data1['P_avg'].to_numpy(dtype=np.float64)
+
+    proposed_method(
+        datasets=datasets,
+        look_back=look_back,
+        data_partition=data_partition,
+        cap=cap
+    )
