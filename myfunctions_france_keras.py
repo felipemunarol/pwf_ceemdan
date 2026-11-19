@@ -1145,7 +1145,7 @@ def proposed_method(
     )
 
     emd_ = CEEMDAN(
-        trials=10,
+        # trials=10,
         epsilon=0.05,
         parallel=False
     )
