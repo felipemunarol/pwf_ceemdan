@@ -97,7 +97,7 @@ def run_cv(method, datasets, dates, look_back, cap, n_splits=3, **kwargs):
 
     for fold, (train_idx, test_idx) in enumerate(tscv.split(datasets)):
 
-        logger.info(f"Executing Fold {fold + 1} - {method.__name__}")
+        logger.info(f"Executing Fold {fold + 1} - {flag}")
 
         # Dados de treino e teste do fold
         fold_idx = np.concatenate([train_idx, test_idx])
@@ -261,7 +261,7 @@ class PositionalEncoding(tf.keras.layers.Layer):
 # DIRECT MODELS
 # =============================================================================
 # SVR
-def svr_model(datasets, look_back, data_partition=0.7, cap=None):
+def svr_model(datasets, look_back, data_partition=0.7, cap=None, flag=''):
 
     datasets = np.asarray(datasets).reshape(-1, 1)
 
@@ -298,11 +298,30 @@ def svr_model(datasets, look_back, data_partition=0.7, cap=None):
 
     y_test = np.asarray(testY).ravel()
 
+    mask = y_test != 0
+
+    mape = np.mean(np.abs(y_test - y_pred) / cap) * 100
+
+    if np.any(mask):
+        classic_mape = np.mean(
+            np.abs((y_test[mask] - y_pred[mask]) / y_test[mask])
+        ) * 100
+    else:
+        classic_mape = np.nan
+
+    rmse = np.sqrt(np.mean((y_test - y_pred) ** 2))
+    mae = np.mean(np.abs(y_test - y_pred))
+
+    logger.info(f"Classic MAPE: {classic_mape:.4f}%")
+    logger.info(f"MAPE: {mape:.4f}%")
+    logger.info(f"RMSE: {rmse:.4f}")
+    logger.info(f"MAE: {mae:.4f}")
+
     return y_test, y_pred
 
 
 # ANN
-def ann_model(datasets, look_back, data_partition=0.7, cap=None):
+def ann_model(datasets, look_back, data_partition=0.7, cap=None, flag=''):
 
     # ==========================================================
     # PREPARAÇÃO DOS DADOS
@@ -339,13 +358,14 @@ def ann_model(datasets, look_back, data_partition=0.7, cap=None):
     sc_y = StandardScaler()
 
     X_train = sc_X.fit_transform(
-        trainX.reshape(-1, look_back)
-    )
-    X_test = sc_X.transform(
-        testX.reshape(-1, look_back)
+        X_train.reshape(X_train.shape[0], -1)
     )
 
-    y_train = sc_y.fit_transform(y_train).ravel()
+    X_test = sc_X.transform(
+        X_test.reshape(X_test.shape[0], -1)
+    )
+
+    y_train = sc_y.fit_transform(y_train).reshape(-1, 1, 1)
 
     # ==========================================================
     # FORMATO DA ENTRADA DA ANN
@@ -392,6 +412,25 @@ def ann_model(datasets, look_back, data_partition=0.7, cap=None):
     y_pred = sc_y.inverse_transform(
         y_pred_scaled.reshape(-1, 1)
     ).ravel()
+
+    mask = y_test != 0
+
+    mape = np.mean(np.abs(y_test - y_pred) / cap) * 100
+
+    if np.any(mask):
+        classic_mape = np.mean(
+            np.abs((y_test[mask] - y_pred[mask]) / y_test[mask])
+        ) * 100
+    else:
+        classic_mape = np.nan
+
+    rmse = np.sqrt(np.mean((y_test - y_pred) ** 2))
+    mae = np.mean(np.abs(y_test - y_pred))
+
+    logger.info(f"Classic MAPE: {classic_mape:.4f}%")
+    logger.info(f"MAPE: {mape:.4f}%")
+    logger.info(f"RMSE: {rmse:.4f}")
+    logger.info(f"MAE: {mae:.4f}")
 
     return y_test, y_pred
 

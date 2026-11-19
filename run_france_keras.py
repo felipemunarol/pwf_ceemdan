@@ -16,7 +16,7 @@ from myfunctions_france_keras import \
 from logger_config import configurar_logger
 
 # Reconfigura o logger após os imports para garantir que permaneça habilitado.
-logger = configurar_logger("ceemdan_torch")
+logger = configurar_logger("ceemdan_keras")
 logger.disabled = False
 
 # Limita uso de memória CPU. Impede que o código pare.
@@ -85,32 +85,32 @@ res = run_cv(proposed_method, datasets, dates=dates, look_back=look_back, cap=ca
 # logger.info('proposed_method using hilbert transform')
 # proposed_method(datasets, look_back, data_partition, cap, hilbert=True)
 # res = run_cv(proposed_method, datasets, dates=dates, 
-#              look_back=look_back, cap=cap, hilbert=True)
+#              look_back=look_back, cap=cap, hilbert=True, flag='hilbert')
 
 logger.info('proposed_method_stable_and_dropout_layer')
 # proposed_method(datasets, look_back, data_partition, cap, drop_extend=True)
 res = run_cv(proposed_method, datasets, dates=dates,
              look_back=look_back, cap=cap, drop_extend=True, flag='proposed_method_stable_and_dropout')
 
-# logger.info('proposed_method_with_bilstm')
+logger.info('proposed_method_with_bilstm')
 # # proposed_method(datasets, look_back, data_partition, cap, lstm=False, bilstm=True)
-# res = run_cv(proposed_method, datasets, dates=dates,
-#              look_back=look_back,cap=cap, lstm=False, bilstm=True, flag='bilstm')
+res = run_cv(proposed_method, datasets, dates=dates,
+             look_back=look_back,cap=cap, lstm=False, bilstm=True, flag='bilstm')
 
-# logger.info('proposed_method_with_gru')
+logger.info('proposed_method_with_gru')
 # # proposed_method(datasets, look_back, data_partition, cap, lstm=False, gru=True)
-# res = run_cv(proposed_method, datasets, dates=dates,
-#              look_back=look_back,cap=cap, lstm=False, gru=True, flag='gru')
+res = run_cv(proposed_method, datasets, dates=dates,
+             look_back=look_back,cap=cap, lstm=False, gru=True, flag='gru')
 
-# logger.info('proposed_method_with_bigru')
+logger.info('proposed_method_with_bigru')
 # # proposed_method(datasets, look_back, data_partition, cap, lstm=False, bigru=True)
-# res = run_cv(proposed_method, datasets, dates=dates,
-#              look_back=look_back,cap=cap, lstm=False, bigru=True, flag='bigru')
+res = run_cv(proposed_method, datasets, dates=dates,
+             look_back=look_back,cap=cap, lstm=False, bigru=True, flag='bigru')
 
-# logger.info('proposed_method_with_transformer_keras')
+logger.info('proposed_method_with_transformer_keras')
 # proposed_method(datasets, look_back, data_partition, cap, lstm=False, transformer=True)
-# # res = run_cv(proposed_method, datasets, dates=dates,
-# #              look_back=look_back,cap=cap, lstm=False, transformer=True, flag='transformer')
+res = run_cv(proposed_method, datasets, dates=dates,
+             look_back=look_back,cap=cap, lstm=False, transformer=True, flag='transformer')
 
 
 
