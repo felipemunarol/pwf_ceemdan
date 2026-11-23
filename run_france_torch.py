@@ -17,8 +17,10 @@ from logger_config import configurar_logger
 logger = configurar_logger("ceemdan_torch")
 logger.disabled = False
 
-print("Após imports:", logger.disabled)
-logger.info("Logger funcionando após imports")
+def log_model_start(name):
+    logger.info("\n" + "=" * 70)
+    logger.info("INICIANDO MODELO: %s", name.upper())
+    logger.info("=" * 7
 
 df = pd.read_csv('dataset/final_la_haute_R0711.csv')
 df['Date'] = pd.to_datetime(
@@ -42,14 +44,8 @@ data1 = data1.reset_index(drop=True).dropna()
 dates = data1['Date']
 datasets = data1['P_avg'].values.reshape(-1, 1)
 
-import logging
-print("Logger disabled:", logger.disabled)
-print("INFO habilitado:", logger.isEnabledFor(logging.INFO))
 
-logger.info("TESTE INFO")
-logger.warning("TESTE WARNING")
-
-logger.info('proposed_method_with_seq_kan')
+log_model_start('proposed_method_with_seq_kan')
 # proposed_method(datasets, look_back, data_partition, cap)
 res = run_cv(proposed_method, datasets, dates=dates,
              look_back=look_back,cap=cap, flag='seqkan')
