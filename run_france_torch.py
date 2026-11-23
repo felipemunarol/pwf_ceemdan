@@ -20,7 +20,7 @@ logger.disabled = False
 def log_model_start(name):
     logger.info("\n" + "=" * 70)
     logger.info("INICIANDO MODELO: %s", name.upper())
-    logger.info("=" * 7
+    logger.info("=" * 7)
 
 df = pd.read_csv('dataset/final_la_haute_R0711.csv')
 df['Date'] = pd.to_datetime(
