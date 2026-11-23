@@ -142,12 +142,31 @@ def run_cv(method, datasets, dates, look_back, cap, n_splits=3, **kwargs):
         f"dates={len(dates_all)}"
     )
 
+    # ============================================================
+    # METRICAS DOS RESULTADOS
+    # ============================================================
+
+    metrics_summary = {
+        "mape_mean": np.mean(mape_list),
+        "mape_std": np.std(mape_list, ddof=1),
+
+        "classic_mape_mean": np.mean(classic_mape_list),
+        "classic_mape_std": np.std(classic_mape_list, ddof=1),
+
+        "rmse_mean": np.mean(rmse_list),
+        "rmse_std": np.std(rmse_list, ddof=1),
+
+        "mae_mean": np.mean(mae_list),
+        "mae_std": np.std(mae_list, ddof=1)
+    }
+
     logger.info("\n===== CV RESULTS =====")
-    logger.info(f"Model: {flag}")
-    logger.info(f"Classic MAPE: {np.mean(classic_mape_list)}")
-    logger.info(f"MAPE: {np.mean(mape_list)}")
-    logger.info(f"RMSE: {np.mean(rmse_list)}")
-    logger.info(f"MAE: {np.mean(mae_list)}")
+    logger.info("Model: %s", flag)
+
+    for metric, value in metrics_summary.items():
+        logger.info("%s: %.4f", metric, value)
+
+    logger.info("")
 
     os.makedirs("predictions", exist_ok=True)
 
@@ -165,14 +184,24 @@ def run_cv(method, datasets, dates, look_back, cap, n_splits=3, **kwargs):
 
     return {
         "model": flag,
-        "mape": np.mean(mape_list),
-        "classic_map": np.mean(classic_mape_list),
-        "rmse": np.mean(rmse_list),
-        "mae": np.mean(mae_list),
+
+        "mape": metrics_summary["mape_mean"],
+        "mape_std": metrics_summary["mape_std"],
+
+        "classic_map": metrics_summary["classic_mape_mean"],
+        "classic_map_std": metrics_summary["classic_mape_std"],
+
+        "rmse": metrics_summary["rmse_mean"],
+        "rmse_std": metrics_summary["rmse_std"],
+
+        "mae": metrics_summary["mae_mean"],
+        "mae_std": metrics_summary["mae_std"],
+
         "y_test": np.array(y_test_all),
         "y_pred": np.array(y_pred_all),
         "dates": np.array(dates_all)
     }
+
 
 # Funcoes para o Transformer
 # ===============================

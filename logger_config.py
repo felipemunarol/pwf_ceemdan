@@ -3,12 +3,18 @@ import os
 import sys
 from datetime import datetime
 
+
 def configurar_logger(nome="aplicacao"):
 
-    os.makedirs("logs", exist_ok=True)
-
+    # Identificação única da execução
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    arquivo_log = f"logs/{nome}_{timestamp}.log"
+
+    # Cria uma pasta para a execução
+    diretorio_log = os.path.join("logs", timestamp)
+    os.makedirs(diretorio_log, exist_ok=True)
+
+    # Arquivo de log
+    arquivo_log = os.path.join(diretorio_log, f"{nome}.log")
 
     logger = logging.getLogger(nome)
     logger.setLevel(logging.DEBUG)
@@ -34,5 +40,7 @@ def configurar_logger(nome="aplicacao"):
 
         logger.addHandler(file_handler)
         logger.addHandler(console_handler)
+
+    logger.info("Diretório dos logs: %s", diretorio_log)
 
     return logger
