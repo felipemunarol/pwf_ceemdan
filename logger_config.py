@@ -7,7 +7,7 @@ from datetime import datetime
 def configurar_logger(nome="aplicacao"):
 
     # Identificação única da execução
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d")
 
     # Cria uma pasta para a execução
     diretorio_log = os.path.join("logs", timestamp)
